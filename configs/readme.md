@@ -1,1 +1,1 @@
-**Uses ArchLinux's default kernel .config"
+**Uses ArchLinux's default kernel .config**
