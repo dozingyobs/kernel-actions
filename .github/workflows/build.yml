@@ -16,7 +16,6 @@ jobs:
     - name: Fetch and Verify Kernel Version
       id: get-version
       run: |
-        # MUST USE finger_banner. It serves clean plain-text instead of HTML tables.
         RAW_TEXT=$(curl -sSL --fail "https://www.kernel.org/finger_banner")
         
         if [ -z "$RAW_TEXT" ] || ! echo "$RAW_TEXT" | grep -q "longterm"; then
@@ -24,7 +23,6 @@ jobs:
             exit 1
         fi
         
-        # Parses out the absolute final string token (e.g. 6.18.25)
         VERSION=$(echo "$RAW_TEXT" | grep -m1 "longterm" | awk '{print $NF}')
         echo "The latest longterm kernel version is: $VERSION"
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -54,8 +52,7 @@ jobs:
       run: |
         VERSION="${{ steps.get-version.outputs.version }}"
         echo "Cache miss! Downloading version $VERSION..."
-        # FIX 3: Corrected the broken CDN download URL and missing "$" symbol for the variable
-        curl -sSLO --fail "https://kernel.org{VERSION%%.*}.x/linux-$VERSION.tar.xz"
+        wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$VERSION.tar.xz
         tar -xf "linux-$VERSION.tar.xz"
         rm "linux-$VERSION.tar.xz"
 
