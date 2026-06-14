@@ -1,0 +1,116 @@
+name: Build Kernel
+
+on:
+  push:
+    tags:
+      - 'v*' 
+  workflow_dispatch: 
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+    - name: Fetch and Verify Kernel Version
+      id: get-version
+      run: |
+        JSON_DATA=$(curl -sSL --fail "https://kernel.org")
+        
+        if [ -z "$JSON_DATA" ]; then
+            echo "Error: Failed to fetch data from kernel.org or response was empty."
+            exit 1
+        fi
+        
+        if ! echo "$JSON_DATA" | jq empty 2>/dev/null; then
+            echo "Error: Received an invalid response that isn't JSON."
+            exit 1
+        fi
+        
+        VERSION=$(echo "$JSON_DATA" | jq -r '.releases[] | select(.moniker == "longterm") | .version' | head -n 1)
+        echo "The latest longterm kernel version is: $VERSION"
+        
+        # Correct Method: Set an explicit step output parameter
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+    - name: Free disk space
+      run: |
+        sudo swapoff -a
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf "/usr/local/share/boost"
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
+    - name: Checkout patches
+      uses: actions/checkout@v4
+      with:
+        path: my-patches
+
+    - name: Cache the kernel
+      id: cache-kernel
+      uses: actions/cache@v4
+      with:
+        # Reference the explicit step output using the steps context
+        path: "linux-${{ steps.get-version.outputs.version }}"
+        key: "linux-${{ steps.get-version.outputs.version }}"
+
+    - name: Download kernel
+      if: steps.cache-kernel.outputs.cache-hit != 'true'
+      run: |
+        # Use native Bash variables ($VERSION) inside run scripts
+        VERSION="${{ steps.get-version.outputs.version }}"
+        echo "Cache miss! Downloading version $VERSION..."
+        curl -sSLO --fail "https://kernel.org{VERSION%%.*}.x/linux-$VERSION.tar.xz"
+        tar -xf "linux-$VERSION.tar.xz"
+        rm "linux-$VERSION.tar.xz"
+
+    - name: Set up symlink directory
+      run: |
+        ln -sf "linux-${{ steps.get-version.outputs.version }}" linux
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang lld llvm build-essential libncurses-dev bison flex libssl-dev libelf-dev lz4 bc debhelper rsync cpio libdw-dev
+
+    - name: Apply patches
+      working-directory: linux
+      run: |
+        patches=(
+          "$GITHUB_WORKSPACE/my-patches/patches/0001-bore.patch"
+        )
+        for patch in "${patches[@]}"; do
+          git apply --reject "$patch" || exit 1
+        done
+
+    - name: Build Kernel
+      working-directory: linux
+      run: |
+        make LLVM=1 olddefconfig
+        ./scripts/config --enable CONFIG_LTO_CLANG_THIN
+        ./scripts/config --enable CONFIG_LD_IS_LLD
+        ./scripts/config --set-val CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE y
+        ./scripts/config --file .config -e CONFIG_SCHED_BORE
+        ./scripts/config --disable CONFIG_SYSTEM_TRUSTED_KEYRING
+        ./scripts/config --disable CONFIG_SYSTEM_REVOCATION_KEYS
+        ./scripts/config --disable CONFIG_MODULE_SIG
+        ./scripts/config --set-str CONFIG_SYSTEM_TRUSTED_KEYS ""
+        ./scripts/config --set-str CONFIG_SYSTEM_REVOCATION_KEYS ""
+        ./scripts/config --set-str CONFIG_MODULE_SIG_KEY ""
+        make LLVM=1 LLVM_IAS=1 CC=clang KCFLAGS="-march=x86-64-v3 -O2" -j$(nproc) bindeb-pkg LOCALVERSION=-bore
+
+    - name: Move Build Artifacts for Staging
+      run: |
+        mkdir -p dist
+        mv ./*.deb ./dist/ 2>/dev/null || true
+
+    - name: Create and Upload to Release
+      uses: ncipollo/release-action@v1
+      with:
+        artifacts: "dist/*.deb"
+        token: ${{ secrets.GITHUB_TOKEN }}
+        allowUpdates: true
+        draft: false
+        prerelease: false
+        tag: ${{ github.ref_name }}
