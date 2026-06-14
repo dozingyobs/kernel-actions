@@ -1,11 +1,9 @@
 name: Build Kernel
-
 on:
   push:
     tags:
       - 'v*' 
   workflow_dispatch: 
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -26,10 +24,8 @@ jobs:
         VERSION=$(echo "$RAW_TEXT" | grep -m1 "longterm" | awk '{print $NF}')
         echo "The latest longterm kernel version is: $VERSION"
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
     - name: Checkout repository
       uses: actions/checkout@v4
-
     - name: Free disk space
       run: |
         sudo swapoff -a
@@ -37,15 +33,20 @@ jobs:
         sudo rm -rf /opt/ghc
         sudo rm -rf "/usr/local/share/boost"
         sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-        
-
     - name: Cache the kernel
       id: cache-kernel
       uses: actions/cache@v4
       with:
         path: "linux-${{ steps.get-version.outputs.version }}"
         key: "linux-${{ steps.get-version.outputs.version }}"
-
+    - name: Cache ccache
+      uses: actions/cache@v4
+      with:
+        path: ~/.ccache
+        key: ccache-${{ steps.get-version.outputs.version }}-${{ hashFiles('configs/config') }}
+        restore-keys: |
+          ccache-${{ steps.get-version.outputs.version }}-
+          ccache-
     - name: Download kernel
       if: steps.cache-kernel.outputs.cache-hit != 'true'
       run: |
@@ -54,16 +55,13 @@ jobs:
         wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$VERSION.tar.xz
         tar -xf "linux-$VERSION.tar.xz"
         rm "linux-$VERSION.tar.xz"
-
     - name: Set up symlink directory
       run: |
         ln -sf "linux-${{ steps.get-version.outputs.version }}" linux
-
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y clang lld llvm build-essential libncurses-dev bison flex libssl-dev libelf-dev lz4 bc debhelper rsync cpio libdw-dev
-
+        sudo apt-get install -y ccache clang lld llvm build-essential libncurses-dev bison flex libssl-dev libelf-dev lz4 bc debhelper rsync cpio libdw-dev
     - name: Apply patches
       working-directory: linux
       run: |
@@ -71,9 +69,8 @@ jobs:
           "$GITHUB_WORKSPACE/patches/0001-bore.patch"
         )
         for patch in "${patches[@]}"; do
-          git apply --reject "$patch" || exit 1
+          patch -p1 < "$patch" || exit 1
         done
-
     - name: Build Kernel
       working-directory: linux
       run: |
@@ -92,13 +89,11 @@ jobs:
         ./scripts/config --disable CONFIG_DEBUG_INFO
         ./scripts/config --disable CONFIG_DEBUG_INFO_BTF
         ./scripts/config --disable CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
-        make LLVM=1 LLVM_IAS=1 CC=clang KCFLAGS="-march=x86-64-v3 -O2" -j$(nproc) bindeb-pkg LOCALVERSION=-bore INSTALL_MOD_STRIP=1
-
+        make LLVM=1 LLVM_IAS=1 CC="ccache clang" KCFLAGS="-march=x86-64-v3 -O2" INSTALL_MOD_STRIP=1 -j$(nproc) bindeb-pkg LOCALVERSION=-bore
     - name: Move Build Artifacts for Staging
       run: |
         mkdir -p dist
         mv ./*.deb ./dist/ 2>/dev/null || true
-
     - name: Create and Upload to Release
       uses: ncipollo/release-action@v1
       with:
