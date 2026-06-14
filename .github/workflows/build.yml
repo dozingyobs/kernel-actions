@@ -68,7 +68,6 @@ jobs:
       working-directory: linux
       run: |
         patches=(
-          # FIX 4: Corrected path to point to your repository workspace directory
           "$GITHUB_WORKSPACE/patches/0001-bore.patch"
         )
         for patch in "${patches[@]}"; do
@@ -78,7 +77,7 @@ jobs:
     - name: Build Kernel
       working-directory: linux
       run: |
-        cp "$GITHUB_WORKSPACE/config/config" .config
+        cp "$GITHUB_WORKSPACE/configs/config" .config
         make LLVM=1 olddefconfig
         ./scripts/config --enable CONFIG_LTO_CLANG_THIN
         ./scripts/config --enable CONFIG_LD_IS_LLD
