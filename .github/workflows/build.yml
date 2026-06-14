@@ -27,6 +27,8 @@ jobs:
         echo "The latest longterm kernel version is: $VERSION"
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
     - name: Free disk space
       run: |
@@ -35,10 +37,7 @@ jobs:
         sudo rm -rf /opt/ghc
         sudo rm -rf "/usr/local/share/boost"
         sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-
-    # FIX 2: Added missing checkout step so your custom patches folder actually exists
-    - name: Checkout repository
-      uses: actions/checkout@v4
+        
 
     - name: Cache the kernel
       id: cache-kernel
@@ -83,7 +82,7 @@ jobs:
         make LLVM=1 olddefconfig
         ./scripts/config --enable CONFIG_LTO_CLANG_THIN
         ./scripts/config --enable CONFIG_LD_IS_LLD
-        ./scripts/config --set-val CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE y
+        ./scripts/config --enable CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
         ./scripts/config --file .config -e CONFIG_SCHED_BORE
         ./scripts/config --disable CONFIG_SYSTEM_TRUSTED_KEYRING
         ./scripts/config --disable CONFIG_SYSTEM_REVOCATION_KEYS
