@@ -16,17 +16,19 @@ jobs:
     - name: Fetch and Verify Kernel Version
       id: get-version
       run: |
-        # FIX 1: Use finger_banner to get plain text. Bypasses brittle JSON parsing entirely.
-        RAW_TEXT=$(curl -sSL --fail "https://kernel.org")
+        # MUST USE finger_banner. It serves clean plain-text instead of HTML tables.
+        RAW_TEXT=$(curl -sSL --fail "https://www.kernel.org/finger_banner")
         
         if [ -z "$RAW_TEXT" ] || ! echo "$RAW_TEXT" | grep -q "longterm"; then
             echo "Error: Failed to fetch plain text from kernel.org mirror."
             exit 1
         fi
         
+        # Parses out the absolute final string token (e.g. 6.18.25)
         VERSION=$(echo "$RAW_TEXT" | grep -m1 "longterm" | awk '{print $NF}')
         echo "The latest longterm kernel version is: $VERSION"
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
 
     - name: Free disk space
       run: |
