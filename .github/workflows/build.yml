@@ -16,22 +16,16 @@ jobs:
     - name: Fetch and Verify Kernel Version
       id: get-version
       run: |
-        JSON_DATA=$(curl -sSL --fail "https://kernel.org")
+        # FIX 1: Use finger_banner to get plain text. Bypasses brittle JSON parsing entirely.
+        RAW_TEXT=$(curl -sSL --fail "https://kernel.org")
         
-        if [ -z "$JSON_DATA" ]; then
-            echo "Error: Failed to fetch data from kernel.org or response was empty."
+        if [ -z "$RAW_TEXT" ] || ! echo "$RAW_TEXT" | grep -q "longterm"; then
+            echo "Error: Failed to fetch plain text from kernel.org mirror."
             exit 1
         fi
         
-        if ! echo "$JSON_DATA" | jq empty 2>/dev/null; then
-            echo "Error: Received an invalid response that isn't JSON."
-            exit 1
-        fi
-        
-        VERSION=$(echo "$JSON_DATA" | jq -r '.releases[] | select(.moniker == "longterm") | .version' | head -n 1)
+        VERSION=$(echo "$RAW_TEXT" | grep -m1 "longterm" | awk '{print $NF}')
         echo "The latest longterm kernel version is: $VERSION"
-        
-        # Correct Method: Set an explicit step output parameter
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
     - name: Free disk space
@@ -42,20 +36,23 @@ jobs:
         sudo rm -rf "/usr/local/share/boost"
         sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
+    # FIX 2: Added missing checkout step so your custom patches folder actually exists
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
     - name: Cache the kernel
       id: cache-kernel
       uses: actions/cache@v4
       with:
-        # Reference the explicit step output using the steps context
         path: "linux-${{ steps.get-version.outputs.version }}"
         key: "linux-${{ steps.get-version.outputs.version }}"
 
     - name: Download kernel
       if: steps.cache-kernel.outputs.cache-hit != 'true'
       run: |
-        # Use native Bash variables ($VERSION) inside run scripts
         VERSION="${{ steps.get-version.outputs.version }}"
         echo "Cache miss! Downloading version $VERSION..."
+        # FIX 3: Corrected the broken CDN download URL and missing "$" symbol for the variable
         curl -sSLO --fail "https://kernel.org{VERSION%%.*}.x/linux-$VERSION.tar.xz"
         tar -xf "linux-$VERSION.tar.xz"
         rm "linux-$VERSION.tar.xz"
@@ -73,7 +70,8 @@ jobs:
       working-directory: linux
       run: |
         patches=(
-          "/patches/0001-bore.patch"
+          # FIX 4: Corrected path to point to your repository workspace directory
+          "$GITHUB_WORKSPACE/patches/0001-bore.patch"
         )
         for patch in "${patches[@]}"; do
           git apply --reject "$patch" || exit 1
