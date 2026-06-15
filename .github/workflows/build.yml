@@ -43,10 +43,9 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.ccache
-        key: ccache-${{ steps.get-version.outputs.version }}-${{ hashFiles('configs/config') }}
+        key: ccache-${{ steps.get-version.outputs.version }}-${{ github.run_id }}
         restore-keys: |
           ccache-${{ steps.get-version.outputs.version }}-
-          ccache-
     - name: Download kernel
       if: steps.cache-kernel.outputs.cache-hit != 'true'
       run: |
@@ -67,6 +66,8 @@ jobs:
       run: |
         patches=(
           "$GITHUB_WORKSPACE/patches/0001-bore.patch"
+          "$GITHUB_WORKSPACE/patches/0002-clear-patches.patch"
+          "$GITHUB_WORKSPACE/patches/0003-glitched-base.patch"
         )
         for patch in "${patches[@]}"; do
           patch -p1 < "$patch" || exit 1
