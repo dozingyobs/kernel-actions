@@ -62,7 +62,7 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y ccache clang lld llvm build-essential libncurses-dev bison flex libssl-dev libelf-dev lz4 bc debhelper rsync cpio libdw-dev
+        sudo apt-get install -y ccache clang lld llvm build-essential libncurses-dev bison flex libssl-dev libelf-dev lz4 bc debhelper rsync cpio zstd libdw-dev
     - name: Apply patches
       working-directory: linux
       run: |
