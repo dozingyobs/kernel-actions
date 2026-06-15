@@ -38,7 +38,9 @@ jobs:
       uses: actions/cache@v4
       with:
         path: "linux-${{ steps.get-version.outputs.version }}"
-        key: "linux-${{ steps.get-version.outputs.version }}"
+        key: "linux-${{ steps.get-version.outputs.version }}-${{ hashFiles('patches/*.patch') }}"
+        restore-keys: |
+          linux-${{ steps.get-version.outputs.version }}-
     - name: Cache ccache
       uses: actions/cache@v4
       with:
