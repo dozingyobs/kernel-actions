@@ -1,5 +1,10 @@
-## ❓ About Project
-**This is a simple project where I compile the Linux kernel on Github's Actions.**
+## ❓ About kernel-actions (or my personal nickname for it, lazykernel.)
+**This is a simple project where I compile the Linux kernel on Github's Actions because I wanted to have linux-tkg style performance while not building it myself, hence that's why I call it lazykernel.**
+
+## ℹ️ Some info you might wanna know
+- Uses the most latest LTS source (6.18.y at the moment)
+- Secure Boot must be disabled — modules are unsigned
+- Built automatically via GitHub Actions on every release
 
 ## ⚙️ Features
 - **BORE** scheduler for improved responsiveness
