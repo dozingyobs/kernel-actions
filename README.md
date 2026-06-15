@@ -23,6 +23,11 @@ This kernel is intended for experienced Linux users who are comfortable with:
 - Having secure boot disabled
 - Recovering from a broken boot via GRUB or a live USB
 
+If you're running a standard Ubuntu/Mint/Pop installation and don't know what **ANY** of these mean, stick with your distro's kernel. A bad kernel install can leave your system unbootable.
+
+If you don't care then by all means go ahead and install it, however I am **NOT** responsible if your system ends up being unbootable lol
+
+
 ## 📦 ⬇️ How to install the prebuilt kernel?
 ---
 
@@ -31,7 +36,7 @@ Go to the **Releases** tab on GitHub and download both `linux-image-6.x.x-bore_6
 
 ---
 
-### Step 2: Install the Packets
+### Step 2: Install the Packages
 Open your terminal, navigate to your download folder, and run `dpkg` to install both packages simultaneously:
 
 ```bash
@@ -48,6 +53,30 @@ Once your system restarts, verify the installation by checking the active kernel
 uname -r
 ```
 
-If you're running a standard Ubuntu/Mint/Pop installation and don't know what **ANY** of these mean, stick with your distro's kernel. A bad kernel install can leave your system unbootable.
+## 📦 ⬆️ How to do basic maintenance or uninstall older versions of the kernel
+---
 
-If you dont care then by all means go ahead and install it, however I am **NOT** responsible if your system ends up being unbootable lol
+### Step 1: List all installed lazykernel (or lazy) packages
+Because these are manual installations, your system will NOT automatically remove older versions. Open your terminal and run this command to find your installed packages:
+
+```bash
+dpkg -l | grep lazy
+```
+
+---
+
+### Step 2: Purge the old or unwanted kernels
+Copy the exact name of the older package from the list (making sure it does NOT match your active `uname -r` version) and completely remove it using `apt purge`:
+
+```bash
+sudo apt purge linux-image-[PASTE-OLD-VERSION-HERE] and linux-headers-[OLD-VERSION]
+```
+
+---
+
+### Step 3: Update your boot menu
+Once the package is removed, you must refresh your GRUB configuration file so the old options disappear from your system's boot selection screen:
+
+```bash
+sudo update-grub
+```
