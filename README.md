@@ -69,7 +69,18 @@ dpkg -l | grep lazy
 Copy the exact name of the older package from the list (making sure it does NOT match your active `uname -r` version) and completely remove it using `apt purge`:
 
 ```bash
-sudo apt purge linux-image-[PASTE-OLD-VERSION-HERE] and linux-headers-[OLD-VERSION]
+sudo apt purge linux-image-[PASTE-OLD-VERSION-HERE]-lazy and linux-headers-[OLD-VERSION]-lazy
+```
+
+#### 💡 Example:
+If running `dpkg -l | grep lazy` shows this output:
+```text
+ii  linux-image-6.14.1-lazy   6.14.1-1   amd64   Linux kernel binary image
+ii  linux-image-6.14.2-lazy   6.14.2-1   amd64   Linux kernel binary image
+```
+And your current active kernel is `6.14.2-lazy`, you would remove the older `6.14.1` version by running:
+```bash
+sudo apt purge linux-image-6.14.1-lazy
 ```
 
 ---
