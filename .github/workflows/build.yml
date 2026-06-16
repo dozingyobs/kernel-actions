@@ -67,6 +67,7 @@ jobs:
         ccache --set-config=cache_dir=$HOME/.ccache
     - name: Apply patches
       working-directory: linux
+      if: steps.cache-kernel.outputs.cache-hit != 'true'
       run: |
         patches=(
           "$GITHUB_WORKSPACE/patches/0001-bore.patch"
