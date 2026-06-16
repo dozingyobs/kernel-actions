@@ -38,15 +38,16 @@ jobs:
       uses: actions/cache@v4
       with:
         path: "linux-${{ steps.get-version.outputs.version }}"
-        key: "linux-${{ steps.get-version.outputs.version }}"
+        key: "linux-${{ steps.get-version.outputs.version }}-${{ hashFiles('patches/*.patch') }}"
+        restore-keys: |
+          linux-${{ steps.get-version.outputs.version }}-
     - name: Cache ccache
       uses: actions/cache@v4
       with:
         path: ~/.ccache
-        key: ccache-${{ steps.get-version.outputs.version }}-${{ hashFiles('configs/config') }}
+        key: ccache-${{ steps.get-version.outputs.version }}-${{ github.run_id }}
         restore-keys: |
           ccache-${{ steps.get-version.outputs.version }}-
-          ccache-
     - name: Download kernel
       if: steps.cache-kernel.outputs.cache-hit != 'true'
       run: |
@@ -67,6 +68,8 @@ jobs:
       run: |
         patches=(
           "$GITHUB_WORKSPACE/patches/0001-bore.patch"
+          "$GITHUB_WORKSPACE/patches/0002-clear-patches.patch"
+          "$GITHUB_WORKSPACE/patches/0003-glitched-base.patch"
         )
         for patch in "${patches[@]}"; do
           patch -p1 < "$patch" || exit 1
@@ -91,7 +94,13 @@ jobs:
         ./scripts/config --disable CONFIG_DEBUG_INFO
         ./scripts/config --disable CONFIG_DEBUG_INFO_BTF
         ./scripts/config --disable CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
-        make LLVM=1 LLVM_IAS=1 CC="ccache clang" KCFLAGS="-march=x86-64-v3 -O2" INSTALL_MOD_STRIP=1 -j$(nproc) bindeb-pkg LOCALVERSION=-bore
+        ./scripts/config --enable CONFIG_DEBUG_INFO_NONE
+        ./scripts/config --disable CONFIG_DEBUG_INFO
+        ./scripts/config --disable CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
+        ./scripts/config --disable CONFIG_DEBUG_INFO_DWARF4
+        ./scripts/config --disable CONFIG_DEBUG_INFO_DWARF5
+        make LLVM=1 olddefconfig
+        make LLVM=1 LLVM_IAS=1 CC="ccache clang" KCFLAGS="-march=x86-64-v3 -O2" INSTALL_MOD_STRIP=1 -j$(nproc) bindeb-pkg LOCALVERSION=-lazy KDEB_COMPRESS=zstd 
     - name: Move Build Artifacts for Staging
       run: |
         mkdir -p dist
