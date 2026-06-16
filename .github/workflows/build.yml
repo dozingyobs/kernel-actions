@@ -63,6 +63,8 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y ccache clang lld llvm build-essential libncurses-dev bison flex libssl-dev libelf-dev lz4 bc debhelper rsync cpio zstd libdw-dev
+        echo "/usr/lib/ccache" >> $GITHUB_PATH
+        ccache --set-config=cache_dir=$HOME/.ccache
     - name: Apply patches
       working-directory: linux
       run: |
