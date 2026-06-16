@@ -25,7 +25,7 @@ jobs:
         echo "The latest longterm kernel version is: $VERSION"
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: Free disk space
       run: |
         sudo swapoff -a
@@ -35,14 +35,14 @@ jobs:
         sudo rm -rf "$AGENT_TOOLSDIRECTORY"
     - name: Cache the kernel
       id: cache-kernel
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: "linux-${{ steps.get-version.outputs.version }}"
         key: "linux-${{ steps.get-version.outputs.version }}-${{ hashFiles('patches/*.patch') }}"
         restore-keys: |
           linux-${{ steps.get-version.outputs.version }}-
     - name: Cache ccache
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ~/.ccache
         key: ccache-${{ steps.get-version.outputs.version }}-${{ github.run_id }}
@@ -63,6 +63,8 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y ccache clang lld llvm build-essential libncurses-dev bison flex libssl-dev libelf-dev lz4 bc debhelper rsync cpio zstd libdw-dev
+        echo "/usr/lib/ccache" >> $GITHUB_PATH
+        ccache --set-config=cache_dir=$HOME/.ccache
     - name: Apply patches
       working-directory: linux
       run: |
