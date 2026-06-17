@@ -67,6 +67,7 @@ jobs:
         ccache --set-config=cache_dir=$HOME/.ccache
     - name: Apply patches
       working-directory: linux
+      if: steps.cache-kernel.outputs.cache-hit != 'true'
       run: |
         patches=(
           "$GITHUB_WORKSPACE/patches/0001-bore.patch"
@@ -106,7 +107,11 @@ jobs:
     - name: Move Build Artifacts for Staging
       run: |
         mkdir -p dist
-        mv ./*.deb ./dist/ 2>/dev/null || true
+        echo "Looking for debs:"
+        ls -la *.deb 2>/dev/null || echo "No debs found in $(pwd)"
+        mv ./*.deb ./dist/ 2>/dev/null || echo "Nothing to move"
+        echo "Contents of dist:"
+        ls -la dist/
     - name: Create and Upload to Release
       uses: ncipollo/release-action@v1
       with:
