@@ -1,6 +1,7 @@
 ## ❓ About kernel-actions (or my personal nickname for it, lazykernel.)
 **This is a simple project where I compile the Linux kernel on Github's Actions because I wanted to have linux-tkg style performance while not building it myself, hence that's why I call it lazykernel.**
 
+## 🧭 Quick Links
 * 📦 ⬇️ [Jump to Installation](#install)
 * 📦 ⬆️ [Jump to maintenance/uninstall kernel](#uninstall)
 * 📊 [Jump to Hardware used and Benchmark Results](#benchmarks)
