@@ -61,6 +61,16 @@ jobs:
     - name: Set up symlink directory
       run: |
         ln -sf "linux-${{ steps.get-version.outputs.version }}" linux
+    - name: Download and Generate Google BBRv3 Patch
+      if: steps.cache-kernel.outputs.cache-hit != 'true'
+      run: |
+        git clone --depth=50 --no-single-branch https://github.com/google/bbr.git bbr-scraper
+        cd bbr-scraper
+        BBR3_COMMIT=$(git log origin/v3 --oneline | grep -i "bbr3" -m 1 | awk '{print $1}')
+        echo "Target BBRv3 Commit Found: $BBR3_COMMIT"
+        git format-patch -1 $BBR3_COMMIT --stdout > $GITHUB_WORKSPACE/patches/0000-google-bbr3.patch
+        cd ..
+        rm -rf bbr-scraper
     - name: Install build dependencies
       run: |
         sudo apt-get update
@@ -72,10 +82,10 @@ jobs:
       if: steps.cache-kernel.outputs.cache-hit != 'true'
       run: |
         patches=(
+          "$GITHUB_WORKSPACE/patches/0000-google-bbr3.patch"
           "$GITHUB_WORKSPACE/patches/0001-bore.patch"
           "$GITHUB_WORKSPACE/patches/0002-clear-patches.patch"
           "$GITHUB_WORKSPACE/patches/0003-glitched-base.patch"
-          "$GITHUB_WORKSPACE/patches/0004-tcp_bbr-v3.patch"
           "$GITHUB_WORKSPACE/patches/0012-misc-additions.patch"
         )
         for patch in "${patches[@]}"; do
