@@ -64,13 +64,12 @@ jobs:
     - name: Download and Generate Google BBRv3 Patch
       if: steps.cache-kernel.outputs.cache-hit != 'true'
       run: |
-        git clone --depth=50 --no-single-branch https://github.com/google/bbr.git bbr-scraper
+        git clone --branch=v3 --depth=1 https://github.com bbr-scraper
         cd bbr-scraper
-        BBR3_COMMIT=$(git log origin/v3 --oneline | grep -i "bbr3" -m 1 | awk '{print $1}')
-        echo "Target BBRv3 Commit Found: $BBR3_COMMIT"
-        git format-patch -1 $BBR3_COMMIT --stdout > $GITHUB_WORKSPACE/patches/0000-google-bbr3.patch
+        git diff HEAD -- . ':!Documentation' > $GITHUB_WORKSPACE/patches/0000-google-bbr3.patch
         cd ..
         rm -rf bbr-scraper
+        echo "Successfully generated BBRv3 patch file."
     - name: Install build dependencies
       run: |
         sudo apt-get update
