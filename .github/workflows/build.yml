@@ -73,6 +73,8 @@ jobs:
           "$GITHUB_WORKSPACE/patches/0001-bore.patch"
           "$GITHUB_WORKSPACE/patches/0002-clear-patches.patch"
           "$GITHUB_WORKSPACE/patches/0003-glitched-base.patch"
+          "$GITHUB_WORKSPACE/patches/0012-misc-additions.patch"
+          "$GITHUB_WORKSPACE/patches/0004-tcp_bbr-v3.patch"
         )
         for patch in "${patches[@]}"; do
           patch -p1 < "$patch" || exit 1
@@ -86,6 +88,10 @@ jobs:
         ./scripts/config --enable CONFIG_LD_IS_LLD
         ./scripts/config --enable CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
         ./scripts/config --file .config -e CONFIG_SCHED_BORE
+        ./scripts/config --file .config -m CONFIG_NTSYNC
+        ./scripts/config --file .config -e CONFIG_DEFAULT_BBR
+        ./scripts/config --file .config --set-str CONFIG_DEFAULT_TCP_CONG "bbr"
+        ./scripts/config --file .config --set-str CONFIG_DEFAULT_NET_SCHED "fq"
         ./scripts/config --disable CONFIG_SYSTEM_TRUSTED_KEYRING
         ./scripts/config --disable CONFIG_SYSTEM_REVOCATION_KEYS
         ./scripts/config --disable CONFIG_MODULE_SIG
@@ -98,12 +104,17 @@ jobs:
         ./scripts/config --disable CONFIG_DEBUG_INFO_BTF
         ./scripts/config --disable CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
         ./scripts/config --enable CONFIG_DEBUG_INFO_NONE
-        ./scripts/config --disable CONFIG_DEBUG_INFO
-        ./scripts/config --disable CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
         ./scripts/config --disable CONFIG_DEBUG_INFO_DWARF4
         ./scripts/config --disable CONFIG_DEBUG_INFO_DWARF5
+        ./scripts/config --disable CONFIG_HZ_300
+        ./scripts/config --enable CONFIG_HZ_1000
+        ./scripts/config --set-val CONFIG_HZ 1000
+        ./scripts/config --enable CONFIG_HIGH_RES_TIMERS
+        ./scripts/config --disable CONFIG_NO_HZ_FULL
+        ./scripts/config --enable CONFIG_NO_HZ_IDLE
         make LLVM=1 olddefconfig
-        make LLVM=1 LLVM_IAS=1 CC="ccache clang" KCFLAGS="-march=x86-64-v3 -O2" INSTALL_MOD_STRIP=1 -j$(nproc) bindeb-pkg LOCALVERSION=-lazy KDEB_COMPRESS=zstd 
+        export CUSTOM_KCFLAGS="-march=x86-64-v3 -O2"
+        make LLVM=1 LLVM_IAS=1 CC="ccache clang" KCFLAGS="$CUSTOM_KCFLAGS" INSTALL_MOD_STRIP=1 -j$(nproc) bindeb-pkg LOCALVERSION=-lazy KDEB_COMPRESS=zstd
     - name: Move Build Artifacts for Staging
       run: |
         mkdir -p dist
