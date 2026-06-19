@@ -14,14 +14,16 @@ jobs:
     - name: Fetch and Verify Kernel Version
       id: get-version
       run: |
-        RAW_TEXT=$(curl -sSL --fail "https://www.kernel.org/finger_banner")
-        
-        if [ -z "$RAW_TEXT" ] || ! echo "$RAW_TEXT" | grep -q "longterm"; then
-            echo "Error: Failed to fetch plain text from kernel.org mirror."
+        JSON_DATA=$(curl -sSL --fail "https://kernel.org/releases.json")        
+        if [ -z "$JSON_DATA" ]; then
+            echo "Error: Failed to fetch release data from kernel.org API."
             exit 1
         fi
-        
-        VERSION=$(echo "$RAW_TEXT" | grep -m1 "longterm" | awk '{print $NF}')
+        VERSION=$(echo "$JSON_DATA" | grep -A 4 '"moniker": "longterm"' | grep '"version":' | head -n 1 | awk -F'"' '{print $4}')        
+        if [ -z "$VERSION" ]; then
+            echo "Error: Could not parse longterm version from JSON response."
+            exit 1
+        fi
         echo "The latest longterm kernel version is: $VERSION"
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
     - name: Checkout repository
