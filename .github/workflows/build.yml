@@ -75,8 +75,8 @@ jobs:
           "$GITHUB_WORKSPACE/patches/0001-bore.patch"
           "$GITHUB_WORKSPACE/patches/0002-clear-patches.patch"
           "$GITHUB_WORKSPACE/patches/0003-glitched-base.patch"
-          "$GITHUB_WORKSPACE/patches/0012-misc-additions.patch"
           "$GITHUB_WORKSPACE/patches/0004-tcp_bbr-v3.patch"
+          "$GITHUB_WORKSPACE/patches/0012-misc-additions.patch"
         )
         for patch in "${patches[@]}"; do
           patch -p1 < "$patch" || exit 1
@@ -91,7 +91,7 @@ jobs:
         ./scripts/config --enable CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
         ./scripts/config --file .config -e CONFIG_SCHED_BORE
         ./scripts/config --file .config -m CONFIG_NTSYNC
-        ./scripts/config --file .config -e CONFIG_DEFAULT_BBR
+        ./scripts/config --file .config -m CONFIG_DEFAULT_BBR
         ./scripts/config --file .config --set-str CONFIG_DEFAULT_TCP_CONG "bbr"
         ./scripts/config --file .config --set-str CONFIG_DEFAULT_NET_SCHED "fq"
         ./scripts/config --disable CONFIG_SYSTEM_TRUSTED_KEYRING
