@@ -64,7 +64,7 @@ jobs:
     - name: Download and Generate Google BBRv3 Patch
       if: steps.cache-kernel.outputs.cache-hit != 'true'
       run: |
-        git clone --branch=v3 --depth=1 https://github.com bbr-scraper
+        git clone --branch=v3 --depth=1 https://github.com/google/bbr.git bbr-scraper
         cd bbr-scraper
         git diff HEAD -- . ':!Documentation' > $GITHUB_WORKSPACE/patches/0000-google-bbr3.patch
         cd ..
