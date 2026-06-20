@@ -1,0 +1,37 @@
+Package: linux-headers-6.18.36-lazy
+Source: linux-upstream
+Version: 6.18.36-2
+Architecture: amd64
+Maintainer: runner <runner@runnervm7b5n9.00l5zn2g1e4u5b4eyxwwhwvarg.dx.internal.cloudapp.net>
+Installed-Size: 56712
+Filename: https://github.com/dozingyobs/kernel-actions/releases/download/0.1-test/linux-headers-6.18.36-lazy_6.18.36-2_amd64.deb
+Size: 9779952
+MD5sum: c9dea39b7a626f6b05a1132363ee7c91
+SHA1: 91e17f23079d1081a6508a7fa5203a7cc0420a70
+SHA256: e5704f0ebf36cf383391f9291c11cbcc67879e95f7b75d892665d8f83351be2d
+Section: kernel
+Priority: optional
+Homepage: https://www.kernel.org/
+Description: Linux kernel headers for 6.18.36-lazy on amd64
+ This package provides kernel header files for 6.18.36-lazy on amd64
+ .
+ This is useful for people who need to build external modules
+
+Package: linux-image-6.18.36-lazy
+Source: linux-upstream
+Version: 6.18.36-2
+Architecture: amd64
+Maintainer: runner <runner@runnervm7b5n9.00l5zn2g1e4u5b4eyxwwhwvarg.dx.internal.cloudapp.net>
+Installed-Size: 165522
+Filename: https://github.com/dozingyobs/kernel-actions/releases/download/0.1-test/linux-image-6.18.36-lazy_6.18.36-2_amd64.deb
+Size: 148537642
+MD5sum: 391c651716d73c081f0bd7e62bc111b9
+SHA1: 4af8c36de865595dd777781e0c6d2dab1ae72a2e
+SHA256: 622d1489a1287d7a69ccba05bf5846832252401d0f153ca835edac748abac541
+Section: kernel
+Priority: optional
+Homepage: https://www.kernel.org/
+Description: Linux kernel, version 6.18.36-lazy
+ This package contains the Linux kernel, modules and corresponding other
+ files, version: 6.18.36-lazy.
+

@@ -1,0 +1,40 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Codename: lazykernel
+Date: Sat, 20 Jun 2026 10:10:27 +0000
+Label: LazyKernel
+Origin: LazyKernel
+Suite: stable
+MD5Sum:
+ 07f39026a19019c72435651b72910135             1521 Packages
+ 45405bbcf6022523f97edbd42cde46cf              689 Packages.gz
+ 82e1994b2f7d43c0d1ce9d0bf20c75d3              110 Release
+SHA1:
+ 083296f9c72760ecc74b4e2b411683c07b0d4b63             1521 Packages
+ 9ae432d9fbd3eb2a620a9c13f83dfb9101d4edf8              689 Packages.gz
+ b3725bed2c3ce139f684a2d2862208068dd4cdbf              110 Release
+SHA256:
+ a4c9282fd856891d3142f314872574b5263ce147192de22437cfc684552e80e5             1521 Packages
+ 4000844feb77648b1cd18f33ebdc927a16888273bd91aae0beeb1c4ac36641ec              689 Packages.gz
+ 00dc9ad5b10c54bd1c0bc6e19c9f333dc6dddee3c99c6deb002ccf946bb47201              110 Release
+SHA512:
+ bdff831220a743f78f4cb62b7a685ba6880e96cec948b3c6ec4a9b1ec2b88567efdda64eace575aa77fe295c9aa5f07c0aeb355a06a8ceafa4fc110ab2e0d6f1             1521 Packages
+ 6c4c81ac7acc70558ffa7ecfcca6fb32eaca976ec7e4902cd9e0f6b216766666af915b03c69778cf8a93dabda4c2632bae306785890cd7b222dd25d50148dbf4              689 Packages.gz
+ b43776187cf31129e139c20e67401112a93a5091a561dff8f667605d67cb7d4fc9e7cfe46aa11b4887f1b3ae10f1629751e69049829fd18e9d00d07a9256ea14              110 Release
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCgAdFiEEbybk6kP+lDIyCb/9nEbLKr8wGekFAmo2ZxQACgkQnEbLKr8w
+GenUvw//dlSscOBM4fAUU2Xdxna9p4b4HB1aCrmxhGXmpfuuW+CZCkuSCXDKm0kk
+P+EthwZrrEFEHfLFh8AA+W1X5sGsy/GUqICT3aipPtxX7OEvTjmCXvDc/Fdl2bGS
+DvB2gEzhqyH0mLAq7Lc60wERL72oG3LK6K7N4Z5dv7Qbqk/Wbnhz+lHgc/KcvRtt
+RPvE5antu1OfPsXgL8wTfGYdAkCIXw5Y4NhX9E9jeLkktI3qwWupbqY132n0pVEA
+XXd0thazPK+w6aqcWi+rpxCJiQ1TG64+IhrX1y7yRSgeGTs33w6YzC3y37s4EbUj
+tZkxsDYk0uUIcAuor/Mgm/+4fFmR7TLyp3certGCHUBaWpq62ZawtJsLsNLSM0aB
+W6OJmQroNF5mlfAqTyF5d3QmB+rC7mZCSmkpmvMpsC544jfxlwl3ii3zOgcqt5UM
+PLHBQk4fUuebAI/1FnmqAnYrkyYZwencgp4L+PxELIJ6ocHoyaOQ9jzKJgfnxg43
+kiTtvHxmXfEMTG1AsDGDMXPtbwJxnleu9GsDUcygq9LGme4WXh8uovbAj0psmhLn
+jID4XIxC7DREfhNJORMuTmeiq+sTZT3SwbrO0JRSox79qFKEnxtdvMvtHVASSsSm
+GCtFQRV0Ab9mTaTWpg0FxU26fhFi0CO1qpCl0iBa0F4tomGju4A=
+=Tvq7
+-----END PGP SIGNATURE-----
