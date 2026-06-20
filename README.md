@@ -21,6 +21,15 @@
 > sudo apt update && sudo apt install build-essential dkms clang lld llvm libelf-dev
 > ```
 
+> [!WARNING]
+> NVIDIA proprietary drivers **older than 580.x** will fail to build the `nvidia-drm` kernel module via DKMS against LazyKernel kernels ≥6.17 (currently 6.18.y, which is ≥6.17), with an error like:
+> ```bash
+>    error: incompatible function pointer types initializing
+>    'struct drm_framebuffer *(*)(...)' with an expression of type
+>    'struct drm_framebuffer *(...)'
+> ```
+> If you're on a **Maxwell/Pascal/Volta GPU**, use driver branch **580.x** (the final branch supporting those architectures). **Turing** and newer can use any **current** driver. Driver **470.x (Kepler)** and earlier are not expected to work
+without manual patching.
 
 
 ## ⚙️ Features
