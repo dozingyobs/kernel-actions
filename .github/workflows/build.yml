@@ -127,10 +127,11 @@ jobs:
         echo "Contents of dist:"
         ls -la dist/
     - name: Create and Upload to Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         files: "dist/*.deb"
         token: ${{ secrets.GITHUB_TOKEN }}
         draft: true
         prerelease: false
-        tag_name: ${{ github.ref_name || 'debug-build' }}
+        tag_name: v${{ steps.get-version.outputs.version }}-debug
+        name: Linux Kernel v${{ steps.get-version.outputs.version }} Build
