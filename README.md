@@ -15,6 +15,13 @@
 > * **Automation:** Compiled automatically via GitHub Actions on every release.
 > * **Secure Boot:** **Must be disabled**. Leaving Secure Boot active will prevent your system from booting this kernel.
 
+> [!WARNING]  
+> **NVIDIA & External Driver Modules:** Because this kernel is compiled using **Clang/LLVM with ThinLTO**, any out-of-tree kernel modules (like proprietary NVIDIA drivers) **must** be compiled using the exact same Clang toolchain. Building drivers with standard GCC will fail. Before installing your graphics drivers, ensure you have the required tools installed on your host system:
+> ```bash
+> sudo apt update && sudo apt install build-essential dkms clang lld llvm libelf-dev
+> ```
+
+
 
 ## ⚙️ Features
 - **BORE** scheduler for improved responsiveness
