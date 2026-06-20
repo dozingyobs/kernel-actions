@@ -116,7 +116,7 @@ jobs:
         ./scripts/config --disable CONFIG_NO_HZ_FULL
         ./scripts/config --enable CONFIG_NO_HZ_IDLE
         make LLVM=1 olddefconfig
-        export CUSTOM_KCFLAGS="-march=x86-64-v3 -O2 -flto=thin"
+        export CUSTOM_KCFLAGS="-march=x86-64-v3 -O2"
         make LLVM=1 LLVM_IAS=1 CC="ccache clang" KCFLAGS="$CUSTOM_KCFLAGS" INSTALL_MOD_STRIP=1 -j$(nproc) bindeb-pkg LOCALVERSION=-lazy KDEB_COMPRESS=zstd
     - name: Move Build Artifacts for Staging
       run: |
