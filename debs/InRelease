@@ -1,0 +1,40 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Codename: kernel-actions
+Date: Sat, 20 Jun 2026 10:49:19 +0000
+Label: kernel-actions
+Origin: kernel-actions
+Suite: stable
+MD5Sum:
+ 1a1e067a7e2d69225c6a0bfdaf92677b             1521 Packages
+ 6ae4c73c902a8685a265b35387a3500d              689 Packages.gz
+ 6714cedc050831882ddb33a75ef54748              122 Release
+SHA1:
+ dca3184fd0fdb2d8521cbfbbe55053c649bfa091             1521 Packages
+ 1e550ab7c3a9b616ba7f9b9f9d1c84d8b20fdc08              689 Packages.gz
+ 440bc251275576d239c2fb05cb8829bf0deeb1b7              122 Release
+SHA256:
+ df4a516fd57b05be1e2b501ed1f7871c7b734e0d09ec4c0565260616c8369e30             1521 Packages
+ 0a56efe8ada97ebd901bca0e9bf6415105a467e8848cae07b062e3ae5ce22411              689 Packages.gz
+ b70cf9a1c7d8e3280e3512438d4064d6a532379b9c46784da0b4719008ba0b48              122 Release
+SHA512:
+ 6df73995776814bfb5169e7369ce2edf143ad7c495d5c2f7d388f64c714ea175a76db361b0f62adc3354fcac523e666f727f679f7859b82a17dd0a660a8fa2cd             1521 Packages
+ 4ead4fc45333ddc841ae6ad2102111cd8b8ecb61a7d3c6f6f461bbbb935189e470638c1c2bbf4833a49ef4ec99c44b7878744aca96933726389a8010013dba2a              689 Packages.gz
+ 4fe0a23ed5b824cd6710e9dedd42638750663e70d9bc8027c5c20f80d6dbfc9b19ce9e6753b7626ebb5477acc6e0df947bc1f395ed1a4149f8d5efd64d5a996a              122 Release
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCgAdFiEEbybk6kP+lDIyCb/9nEbLKr8wGekFAmo2cC8ACgkQnEbLKr8w
+GenLfg//YrrZbUEJrgPaMPSwUJc1BjvRwvbfqHWcx+JlsVlX/KW6dWEHMyNxPQ/0
+VXIAGHi1/HHW0UFoFKZ6iDlKtv4HvSVN1pLeHZmVbenBfQYsC19rBlOrRjfEyop3
+TwJ8k6KmRFEdmTvZnvl0CCKh2FgJg486/Nrl9OlBzlAECmCZyRKxdjo3cZ4ynaLL
+40kpsQXiy+KtDcaTycHlbIqCl8Lxd8fhDFBsvhAQ9gDaVZ2ntyJIGnsdi5slR3eA
+VDUIAIn5J/mv9Zq+RMFDzNTFwFmWmQfmwMixW9VsOvCZidqT8EtYnhnaYq4NH70+
+T6Jlu5v3/WoEGQzhFB9Bwj7FuRGiA0w750tElrbZTK1U5b2nrC3zTZB8Oe5Iix4Y
+4imQsKSkjVER600ikCc0knN4cRv8gQyGT/IVgGcTE/ItaueEvciFwePi5dV46bbO
+q5F2ZAskCNJtPhcClwtHYbZC0kuAfs8pccWxHCOY5mMO07FOW9xfQcm3VE9QvGfD
+5lCsHErf5kQYSUcXZRIXDIOFyjdMuhMkuVa0pm2qp3uL/uVzmxM8XprmNc/WsMed
+r1rqStwMr2PGWfXo4m+79fIvDBpuastMZYUTM/Rx+LAy+5Z9vNFXZLeVj8N+DQTF
+ED8NAtCJYNXKuhotQQA9a/ph3owb2O869AteQVpm8sTxDGMjsiM=
+=GWYY
+-----END PGP SIGNATURE-----
