@@ -16,15 +16,23 @@ jobs:
       - name: Install APT Utilities
         run: |
           sudo apt-get update
-          sudo apt-get install -y dpkg-dev apt-utils
+          sudo apt-get install -y dpkg-dev apt-utils gnupg
+
+      - name: Import GPG Signing Key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          # Capture the key ID for use in the signing step
+          KEY_ID=$(gpg --list-secret-keys --keyid-format=long | grep sec | awk '{print $2}' | cut -d'/' -f2)
+          echo "GPG_KEY_ID=$KEY_ID" >> "$GITHUB_ENV"
 
       - name: Generate Lightweight Index Map
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 1. Clean staging area
           mkdir -p debs
-          rm -f debs/Packages* debs/Release*
+          rm -f debs/Packages* debs/Release* debs/InRelease
           rm -rf debs/dl
           mkdir -p debs/dl
 
@@ -37,38 +45,46 @@ jobs:
             "https://api.github.com/repos/$REPO/releases/tags/$TAG" \
             | jq -r '.assets[] | select(.name | endswith(".deb")) | "\(.name) \(.browser_download_url)"' > download_map.txt
 
-          # 2. Download every .deb into debs/dl (isolated from repo files)
           while read -r filename url; do
             [ -z "$filename" ] && continue
             echo "Downloading: $filename"
             curl -sL "$url" -o "debs/dl/$filename"
           done < download_map.txt
 
-          # 3. Scan ONCE, against the isolated directory, after all debs are present
           cd debs
           dpkg-scanpackages dl /dev/null > Packages
 
-          # 4. Rewrite every Filename: line to point at its real GitHub Release URL
           while read -r filename url; do
             [ -z "$filename" ] && continue
             escaped_url=$(printf '%s\n' "$url" | sed 's/[&/\]/\\&/g')
             sed -i "s|Filename: dl/$filename|Filename: $escaped_url|g" Packages
           done < ../download_map.txt
 
-          # 5. Clean up downloaded binaries — only metadata gets committed
           rm -rf dl
-
-          # 6. Finalize compressed indexes
-          gzip -k -f Packages
-          apt-ftparchive release . > Release
           cd ..
           rm -f download_map.txt
+
+          cd debs
+          gzip -k -f Packages
+          apt-ftparchive -o APT::FTPArchive::Release::Origin="LazyKernel" \
+                         -o APT::FTPArchive::Release::Label="LazyKernel" \
+                         -o APT::FTPArchive::Release::Suite="stable" \
+                         -o APT::FTPArchive::Release::Codename="lazykernel" \
+                         release . > Release
+          cd ..
+
+      - name: Sign the Repository
+        run: |
+          cd debs
+          gpg --batch --yes --default-key "$GPG_KEY_ID" -abs -o Release.gpg Release
+          gpg --batch --yes --default-key "$GPG_KEY_ID" --clearsign -o InRelease Release
+          cd ..
 
       - name: Commit and Push Tiny Metadata Changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add debs/Packages* debs/Release
+          git add debs/Packages* debs/Release* debs/InRelease
           git commit -m "Automated index update: Kernel release ${{ github.event.release.tag_name }}" || exit 0
           git push origin main
