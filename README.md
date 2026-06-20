@@ -78,6 +78,32 @@ Once your system restarts, verify the installation by checking the active kernel
 ```bash
 uname -r
 ```
+### Automated Installation via APT Repository (Experimental)
+
+If you prefer automated updates instead of downloading `.deb` files manually every time, you can add the custom repository to your system.
+
+#### 1. Add the Repository Source
+Run the following command to add the repository to your APT sources list:
+```bash
+curl -fsSL https://dozingyobs.github.io/kernel-actions/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/kernel-actions.gpg
+echo "deb [signed-by=/usr/share/keyrings/kernel-actions.gpg] https://dozingyobs.github.io/kernel-actions/debs ./" | sudo tee /etc/apt/sources.list.d/kernel-actions.list
+```
+
+#### 2. Update and Install
+Refresh your package lists and install the kernel packages using `apt`:
+```bash
+sudo apt update
+sudo apt install linux-image-6.*-lazy linux-headers-6.*-lazy
+```
+
+#### 3. Reboot & Verify
+```bash
+sudo reboot
+```
+Once your system restarts, verify that the kernel is active:
+```bash
+uname -r
+```
 
 ## 📦 ⬆️ How to do basic maintenance or uninstall older versions of the kernel <a name="uninstall"></a>
 ---
