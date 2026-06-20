@@ -49,6 +49,12 @@ jobs:
           done < download_map.txt
 
           rm -f download_map.txt
+          
+      - name: Prune old packages
+        run: |
+          cd debs/pool
+          ls -t *.deb | tail -n +7 | xargs -r rm --
+          cd ../..
 
       - name: Generate Package Index
         run: |
