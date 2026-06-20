@@ -76,6 +76,7 @@ jobs:
       - name: Generate Package Index
         run: |
           cd site/debs
+          rm -f Packages Packages.gz Release Release.gpg InRelease
           dpkg-scanpackages pool /dev/null > Packages
           gzip -k -f Packages
           apt-ftparchive -o APT::FTPArchive::Release::Origin="kernel-actions" \
