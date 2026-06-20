@@ -61,18 +61,6 @@ jobs:
     - name: Set up symlink directory
       run: |
         ln -sf "linux-${{ steps.get-version.outputs.version }}" linux
-    - name: Generate Google BBRv3 Patch
-      run: |
-        cd "linux-$VERSION"
-        git init -q
-        git add -A
-        git commit -q -m "baseline" --no-gpg-sign
-        git remote add google-bbr https://github.com/google/bbr.git
-        git fetch --depth=1 google-bbr v3
-        git diff HEAD google-bbr/v3 -- net/ipv4/tcp_bbr.c net/ipv4/tcp_input.c net/ipv4/tcp_output.c net/ipv4/tcp.c include/net/tcp.h net/ipv4/Kconfig \
-          > $GITHUB_WORKSPACE/patches/0000-google-bbr3.patch
-        rm -rf .git
-        cd ..
     - name: Install build dependencies
       run: |
         sudo apt-get update
