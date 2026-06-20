@@ -1,7 +1,5 @@
 name: Publish Release to APT Repo
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
@@ -47,14 +45,9 @@ jobs:
           TAG="${{ github.event.inputs.tag }}"
 
           if [ -z "$TAG" ]; then
-            # Came from a release event, or manual run with no tag specified
-            if [ -n "${{ github.event.release.tag_name }}" ]; then
-              TAG="${{ github.event.release.tag_name }}"
-            else
-              TAG=$(curl -sH "Authorization: token $GITHUB_TOKEN" \
-                "https://api.github.com/repos/$REPO/releases/latest" \
-                | jq -r '.tag_name')
-            fi
+            TAG=$(curl -sH "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/$REPO/releases/latest" \
+              | jq -r '.tag_name')
           fi
 
           echo "Resolved tag: $TAG"
