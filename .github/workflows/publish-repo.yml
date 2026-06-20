@@ -1,0 +1,74 @@
+name: Publish Release to APT Repo
+on:
+  release:
+    types: [published]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Install APT Utilities
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev apt-utils
+
+      - name: Generate Lightweight Index Map
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 1. Clean staging area
+          mkdir -p debs
+          rm -f debs/Packages* debs/Release*
+          rm -rf debs/dl
+          mkdir -p debs/dl
+
+          TAG="${{ github.event.release.tag_name }}"
+          REPO="${{ github.repository }}"
+
+          echo "Processing assets for release: $TAG"
+
+          curl -sH "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$REPO/releases/tags/$TAG" \
+            | jq -r '.assets[] | select(.name | endswith(".deb")) | "\(.name) \(.browser_download_url)"' > download_map.txt
+
+          # 2. Download every .deb into debs/dl (isolated from repo files)
+          while read -r filename url; do
+            [ -z "$filename" ] && continue
+            echo "Downloading: $filename"
+            curl -sL "$url" -o "debs/dl/$filename"
+          done < download_map.txt
+
+          # 3. Scan ONCE, against the isolated directory, after all debs are present
+          cd debs
+          dpkg-scanpackages dl /dev/null > Packages
+
+          # 4. Rewrite every Filename: line to point at its real GitHub Release URL
+          while read -r filename url; do
+            [ -z "$filename" ] && continue
+            escaped_url=$(printf '%s\n' "$url" | sed 's/[&/\]/\\&/g')
+            sed -i "s|Filename: dl/$filename|Filename: $escaped_url|g" Packages
+          done < ../download_map.txt
+
+          # 5. Clean up downloaded binaries — only metadata gets committed
+          rm -rf dl
+
+          # 6. Finalize compressed indexes
+          gzip -k -f Packages
+          apt-ftparchive release . > Release
+          cd ..
+          rm -f download_map.txt
+
+      - name: Commit and Push Tiny Metadata Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add debs/Packages* debs/Release
+          git commit -m "Automated index update: Kernel release ${{ github.event.release.tag_name }}" || exit 0
+          git push origin main
