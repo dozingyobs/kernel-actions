@@ -91,7 +91,8 @@ jobs:
         ./scripts/config --enable CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
         ./scripts/config --file .config -e CONFIG_SCHED_BORE
         ./scripts/config --file .config -m CONFIG_NTSYNC
-        ./scripts/config --file .config -m CONFIG_DEFAULT_BBR
+        ./scripts/config --file .config -e CONFIG_DEFAULT_BBR
+        ./scripts/config --file .config -e CONFIG_TCP_CONG_BBR
         ./scripts/config --file .config --set-str CONFIG_DEFAULT_TCP_CONG "bbr"
         ./scripts/config --file .config --set-str CONFIG_DEFAULT_NET_SCHED "fq"
         ./scripts/config --disable CONFIG_SYSTEM_TRUSTED_KEYRING
@@ -126,11 +127,10 @@ jobs:
         echo "Contents of dist:"
         ls -la dist/
     - name: Create and Upload to Release
-      uses: ncipollo/release-action@v1
+      uses: softprops/action-gh-release@v2
       with:
-        artifacts: "dist/*.deb"
+        files: "dist/*.deb"
         token: ${{ secrets.GITHUB_TOKEN }}
-        allowUpdates: true
-        draft: false
+        draft: true
         prerelease: false
-        tag: ${{ github.ref_name }}
+        tag_name: ${{ github.ref_name || 'debug-build' }}
