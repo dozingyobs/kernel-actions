@@ -62,7 +62,6 @@ jobs:
       run: |
         ln -sf "linux-${{ steps.get-version.outputs.version }}" linux
     - name: Generate Google BBRv3 Patch
-      if: steps.cache-kernel.outputs.cache-hit != 'true'
       run: |
         cd "linux-$VERSION"
         git init -q
