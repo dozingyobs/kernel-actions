@@ -26,40 +26,44 @@ jobs:
           KEY_ID=$(gpg --list-secret-keys --keyid-format=long | grep sec | awk '{print $2}' | cut -d'/' -f2)
           echo "GPG_KEY_ID=$KEY_ID" >> "$GITHUB_ENV"
 
-      - name: Download Release Assets
+      - name: Generate Lightweight Index
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           rm -f debs/Packages* debs/Release* debs/InRelease
-          mkdir -p debs/pool
+          rm -rf debs/dl
+          mkdir -p debs/dl
 
           TAG="${{ github.event.release.tag_name }}"
           REPO="${{ github.repository }}"
-
-          echo "Processing assets for release: $TAG"
 
           curl -sH "Authorization: token $GITHUB_TOKEN" \
             "https://api.github.com/repos/$REPO/releases/tags/$TAG" \
             | jq -r '.assets[] | select(.name | endswith(".deb")) | "\(.name) \(.browser_download_url)"' > download_map.txt
 
+          # Download just to scan metadata; deleted after, never committed
           while read -r filename url; do
             [ -z "$filename" ] && continue
-            echo "Downloading: $filename"
-            curl -sL "$url" -o "debs/pool/$filename"
+            curl -sL "$url" -o "debs/dl/$filename"
           done < download_map.txt
 
-          rm -f download_map.txt
-          
-      - name: Prune old packages
-        run: |
-          cd debs/pool
-          ls -t *.deb | tail -n +7 | xargs -r rm --
-          cd ../..
-
-      - name: Generate Package Index
-        run: |
           cd debs
-          dpkg-scanpackages pool /dev/null > Packages
+          dpkg-scanpackages dl /dev/null > Packages
+
+          # Rewrite Filename: using awk, not sed — avoids delimiter/escaping issues with URLs
+          while read -r filename url; do
+            [ -z "$filename" ] && continue
+            awk -v fname="dl/$filename" -v url="$url" '
+              $0 == "Filename: " fname { print "Filename: " url; next }
+              { print }
+            ' Packages > Packages.tmp && mv Packages.tmp Packages
+          done < ../download_map.txt
+
+          rm -rf dl
+          cd ..
+          rm -f download_map.txt
+
+          cd debs
           gzip -k -f Packages
           apt-ftparchive -o APT::FTPArchive::Release::Origin="kernel-actions" \
                          -o APT::FTPArchive::Release::Label="kernel-actions" \
@@ -80,6 +84,6 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add debs/
+          git add debs/Packages* debs/Release* debs/InRelease
           git commit -m "Publish release ${{ github.event.release.tag_name }}" || exit 0
           git push origin apt-repo
