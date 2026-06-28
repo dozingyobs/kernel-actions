@@ -76,16 +76,23 @@ jobs:
       - name: Build Meta-Package
         run: |
           sudo apt-get install -y equivs
+          IMAGE_PKG_NAME=$(ls site/debs/pool/linux-image-*.deb | grep -v lazy-meta | head -1 | xargs basename | sed 's/_.*//')
+          HEADERS_PKG_NAME=$(ls site/debs/pool/linux-headers-*.deb | head -1 | xargs basename | sed 's/_.*//')
+
+          echo "Resolved image package: $IMAGE_PKG_NAME"
+          echo "Resolved headers package: $HEADERS_PKG_NAME"
+
           cat > lazy-meta.control << EOF
           Package: linux-image-lazy-meta
           Version: ${RELEASE_TAG}
           Architecture: amd64
-          Depends: linux-image-${RELEASE_TAG}-lazy
+          Depends: ${IMAGE_PKG_NAME}, ${HEADERS_PKG_NAME}
           Maintainer: dozingyobs
           Description: Meta-package tracking the latest LazyKernel build
-            Installing this package ensures the latest LazyKernel image is installed.
+           Installing this package ensures apt upgrade always pulls the
+           latest LazyKernel image and headers.
           EOF
-          
+
           equivs-build lazy-meta.control
           mv linux-image-lazy-meta_*.deb site/debs/pool/
 
