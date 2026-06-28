@@ -93,7 +93,7 @@ echo "deb [signed-by=/usr/share/keyrings/kernel-actions.gpg] https://dozingyobs.
 Refresh your package lists and install the kernel packages using `apt`:
 ```bash
 sudo apt update
-sudo apt install linux-image-6.*-lazy linux-headers-6.*-lazy
+sudo apt install linux-image-lazy-meta
 ```
 
 #### 3. Reboot & Verify
