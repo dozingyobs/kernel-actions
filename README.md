@@ -94,6 +94,7 @@ Refresh your package lists and install the kernel packages using `apt`:
 ```bash
 sudo apt update
 sudo apt install linux-image-lazy-meta
+sudo apt upgrade
 ```
 
 #### 3. Reboot & Verify
