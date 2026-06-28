@@ -72,6 +72,22 @@ jobs:
             curl -sL "$url" -o "site/debs/pool/$filename"
           done < download_map.txt
           rm -f download_map.txt
+          
+      - name: Build Meta-Package
+        run: |
+          sudo apt-get install -y equivs
+          cat > lazy-meta.control << EOF
+          Package: linux-image-lazy-meta
+          Version: ${RELEASE_TAG}
+          Architecture: amd64
+          Depends: linux-image-${RELEASE_TAG}-lazy
+          Maintainer: dozingyobs
+          Description: Meta-package tracking the latest LazyKernel build
+            Installing this package ensures the latest LazyKernel image is installed.
+          EOF
+          
+          equivs-build lazy-meta.control
+          mv linux-image-lazy-meta_*.deb site/debs/pool/
 
       - name: Generate Package Index
         run: |
