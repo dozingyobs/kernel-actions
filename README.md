@@ -34,6 +34,9 @@ without manual patching.
 
 ## ⚙️ Features
 - **BORE** scheduler for improved responsiveness
+- **NTSYNC** module for improved Wine/Proton performance
+- **1000Hz** tick rate with **NO_HZ_IDLE** for lower latency
+- **BBRv3** TCP congestion control with **fq** queueing
 - **Clang/LLVM** compiled with ThinLTO
 - **x86-64-v3** optimizations
 - Easy installation via a prebuilt .deb package
