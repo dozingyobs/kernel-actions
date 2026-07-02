@@ -115,6 +115,7 @@ jobs:
         ./scripts/config --enable CONFIG_HIGH_RES_TIMERS
         ./scripts/config --disable CONFIG_NO_HZ_FULL
         ./scripts/config --enable CONFIG_NO_HZ_IDLE
+        ./scripts/config --enable CONFIG_PREEMPT_DYNAMIC
         ./scripts/config --enable CONFIG_PREEMPT_DYNAMIC_DEFAULT_FULL
         make LLVM=1 olddefconfig
         export CUSTOM_KCFLAGS="-march=x86-64-v3 -O2"
