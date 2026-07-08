@@ -125,6 +125,10 @@ jobs:
         ./scripts/config --enable CONFIG_PCIEASPM_DEFAULT
         ./scripts/config --enable CONFIG_PM
         ./scripts/config --enable CONFIG_DRM_I915
+        ./scripts/config --enable CONFIG_X86_AMD_PSTATE
+        ./scripts/config --enable CONFIG_X86_AMD_PSTATE_DEFAULT_MODE
+        ./scripts/config --enable CONFIG_ACPI_PROCESSOR_IDLE
+        ./scripts/config --enable CONFIG_ACPI_CPPC_LIB
         ./scripts/config --enable CONFIG_PM_RUNTIME 2>/dev/null || true
         make LLVM=1 olddefconfig
         export CUSTOM_KCFLAGS="-march=x86-64-v3 -O2 -pipe"
