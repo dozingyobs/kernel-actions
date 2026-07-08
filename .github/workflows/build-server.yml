@@ -1,0 +1,148 @@
+name: Build Server Kernel
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+  workflow_dispatch: 
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+    - name: Fetch and Verify Kernel Version
+      id: get-version
+      run: |
+        JSON_DATA=$(curl -sSL --fail "https://kernel.org/releases.json")        
+        if [ -z "$JSON_DATA" ]; then
+            echo "Error: Failed to fetch release data from kernel.org API."
+            exit 1
+        fi
+        VERSION=$(echo "$JSON_DATA" | grep -A 4 '"moniker": "longterm"' | grep '"version":' | head -n 1 | awk -F'"' '{print $4}')        
+        if [ -z "$VERSION" ]; then
+            echo "Error: Could not parse longterm version from JSON response."
+            exit 1
+        fi
+        echo "The latest longterm kernel version is: $VERSION"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+    - name: Checkout repository
+      uses: actions/checkout@v5
+    - name: Free disk space
+      run: |
+        sudo swapoff -a
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf "/usr/local/share/boost"
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+    - name: Cache the kernel
+      id: cache-kernel
+      uses: actions/cache@v5
+      with:
+        path: "linux-${{ steps.get-version.outputs.version }}"
+        key: "linux-${{ steps.get-version.outputs.version }}-${{ hashFiles('patches/*.patch') }}"
+        restore-keys: |
+          linux-${{ steps.get-version.outputs.version }}-
+    - name: Cache ccache
+      uses: actions/cache@v5
+      with:
+        path: ~/.ccache
+        key: ccache-${{ steps.get-version.outputs.version }}-${{ github.run_id }}
+        restore-keys: |
+          ccache-${{ steps.get-version.outputs.version }}-
+    - name: Download kernel
+      if: steps.cache-kernel.outputs.cache-hit != 'true'
+      run: |
+        VERSION="${{ steps.get-version.outputs.version }}"
+        echo "Cache miss! Downloading version $VERSION..."
+        wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$VERSION.tar.xz
+        tar -xf "linux-$VERSION.tar.xz"
+        rm "linux-$VERSION.tar.xz"
+    - name: Set up symlink directory
+      run: |
+        ln -sf "linux-${{ steps.get-version.outputs.version }}" linux
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ccache clang lld llvm build-essential libncurses-dev bison flex libssl-dev libelf-dev lz4 bc debhelper rsync cpio zstd libdw-dev
+        echo "/usr/lib/ccache" >> $GITHUB_PATH
+        ccache --set-config=cache_dir=$HOME/.ccache
+    - name: Apply patches
+      working-directory: linux
+      if: steps.cache-kernel.outputs.cache-hit != 'true'
+      run: |
+        patches=(
+          "$GITHUB_WORKSPACE/patches/0000-google-bbr3.patch"
+        )
+        for patch in "${patches[@]}"; do
+          patch -p1 < "$patch" || exit 1
+        done
+    - name: Build Kernel
+      working-directory: linux
+      run: |
+        cp "$GITHUB_WORKSPACE/configs/config" .config
+        make LLVM=1 olddefconfig
+        ./scripts/config --enable CONFIG_LTO_CLANG_THIN
+        ./scripts/config --enable CONFIG_LD_IS_LLD
+        ./scripts/config --enable CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
+        ./scripts/config --file .config -e CONFIG_DEFAULT_BBR
+        ./scripts/config --file .config -e CONFIG_TCP_CONG_BBR
+        ./scripts/config --enable CONFIG_DEFAULT_FQ
+        ./scripts/config --file .config --set-str CONFIG_DEFAULT_TCP_CONG "bbr"
+        ./scripts/config --file .config --set-str CONFIG_DEFAULT_NET_SCH "fq"
+        ./scripts/config --disable CONFIG_SYSTEM_TRUSTED_KEYRING
+        ./scripts/config --disable CONFIG_SYSTEM_REVOCATION_KEYS
+        ./scripts/config --disable CONFIG_MODULE_SIG
+        ./scripts/config --set-str CONFIG_SYSTEM_TRUSTED_KEYS ""
+        ./scripts/config --set-str CONFIG_SYSTEM_REVOCATION_KEYS ""
+        ./scripts/config --disable CONFIG_MODULE_SIG_ALL
+        ./scripts/config --set-str CONFIG_MODULE_SIG_KEY ""
+        ./scripts/config --set-str CONFIG_MODULE_SIG_HASH ""
+        ./scripts/config --disable CONFIG_DEBUG_INFO
+        ./scripts/config --disable CONFIG_DEBUG_INFO_BTF
+        ./scripts/config --disable CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
+        ./scripts/config --enable CONFIG_DEBUG_INFO_NONE
+        ./scripts/config --disable CONFIG_DEBUG_INFO_DWARF4
+        ./scripts/config --disable CONFIG_DEBUG_INFO_DWARF5
+        ./scripts/config --disable CONFIG_HZ_300
+        ./scripts/config --disable CONFIG_HZ_1000
+        ./scripts/config --enable CONFIG_HZ_100       
+        ./scripts/config --set-val CONFIG_HZ 100
+        ./scripts/config --enable CONFIG_HIGH_RES_TIMERS
+        ./scripts/config --disable CONFIG_NO_HZ_FULL
+        ./scripts/config --enable CONFIG_NO_HZ_IDLE
+        ./scripts/config --enable CONFIG_PREEMPT_DYNAMIC
+        ./scripts/config --enable CONFIG_MODULE_COMPRESS_ZSTD
+        ./scripts/config --enable CONFIG_PREEMPT_DYNAMIC_DEFAULT_VOLUNTARY
+        ./scripts/config --enable CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL
+        ./scripts/config --enable CONFIG_CPU_FREQ_GOV_SCHEDUTIL
+        ./scripts/config --enable CONFIG_CPU_FREQ_GOV_ONDEMAND
+        ./scripts/config --enable CONFIG_CPU_IDLE
+        ./scripts/config --enable CONFIG_CPU_IDLE_GOV_MENU
+        ./scripts/config --enable CONFIG_X86_INTEL_PSTATE
+        ./scripts/config --enable CONFIG_INTEL_IDLE
+        ./scripts/config --enable CONFIG_PCIEASPM
+        ./scripts/config --enable CONFIG_PCIEASPM_DEFAULT
+        ./scripts/config --enable CONFIG_PM
+        ./scripts/config --enable CONFIG_DRM_I915
+        ./scripts/config --enable CONFIG_PM_RUNTIME 2>/dev/null || true
+        make LLVM=1 olddefconfig
+        export CUSTOM_KCFLAGS="-march=x86-64-v3 -O2 -pipe"
+        make LLVM=1 LLVM_IAS=1 CC="ccache clang" KCFLAGS="$CUSTOM_KCFLAGS" INSTALL_MOD_STRIP=1 -j$(nproc) bindeb-pkg LOCALVERSION=-lazy KDEB_COMPRESS=zstd
+    - name: Move Build Artifacts for Staging
+      run: |
+        mkdir -p dist
+        echo "Looking for debs:"
+        ls -la *.deb 2>/dev/null || echo "No debs found in $(pwd)"
+        mv ./*.deb ./dist/ 2>/dev/null || echo "Nothing to move"
+        echo "Contents of dist:"
+        ls -la dist/
+    - name: Create and Upload to Release
+      uses: softprops/action-gh-release@v3
+      with:
+        files: "dist/*.deb"
+        token: ${{ secrets.GITHUB_TOKEN }}
+        draft: true
+        prerelease: false
+        tag_name: v${{ steps.get-version.outputs.version }}-debug
+        name: Linux Kernel v${{ steps.get-version.outputs.version }} Build
