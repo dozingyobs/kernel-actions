@@ -128,7 +128,7 @@ jobs:
         ./scripts/config --enable CONFIG_PM_RUNTIME 2>/dev/null || true
         make LLVM=1 olddefconfig
         export CUSTOM_KCFLAGS="-march=x86-64-v3 -O2 -pipe"
-        make LLVM=1 LLVM_IAS=1 CC="ccache clang" KCFLAGS="$CUSTOM_KCFLAGS" INSTALL_MOD_STRIP=1 -j$(nproc) bindeb-pkg LOCALVERSION=-lazy KDEB_COMPRESS=zstd
+        make LLVM=1 LLVM_IAS=1 CC="ccache clang" KCFLAGS="$CUSTOM_KCFLAGS" INSTALL_MOD_STRIP=1 -j$(nproc) bindeb-pkg LOCALVERSION=-lazyserver KDEB_COMPRESS=zstd
     - name: Move Build Artifacts for Staging
       run: |
         mkdir -p dist
