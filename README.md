@@ -156,7 +156,7 @@ sudo update-grub
 > This is a **separate build** from the desktop LazyKernel above, tuned specifically for headless/server workloads (file serving, self-hosted apps, etc.) rather than desktop responsiveness or gaming. If you're setting up a desktop or gaming machine, use the [regular install](#install) instead.
 
 > [!WARNING]
-> This mostly favors **Intel CPUs**, especially the **i3-8145U** (the exact hardware this build is tuned and tested on). AMD-specific power-management options (`amd_pstate`, etc.) are **not included** in this config — not because they'd conflict with the Intel ones, but simply because they haven't been tested. If you're on AMD hardware, add the equivalent options yourself; CPU-agnostic tuning (BBRv3, HZ/tick rate, preemption model, module signing) should still work fine regardless of vendor.
+> This mostly favors **Intel CPUs**, especially the **i3-8145U** (the exact hardware this build is tuned and tested on). AMD-specific power-management options (`amd_pstate`, etc.) are **not included** in this config — not because they'd conflict with the Intel ones, but simply because they haven't been tested. If you're on AMD hardware, they config options have been added however they have not been tested; CPU-agnostic tuning (BBRv3, HZ/tick rate, preemption model, module signing) should still work fine regardless of vendor.
 
 ### ⚙️ Server Features
 - **BBRv3** TCP congestion control with **fq** queueing (shared with desktop build)
