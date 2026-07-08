@@ -94,7 +94,8 @@ jobs:
         ./scripts/config --file .config -e CONFIG_DEFAULT_BBR
         ./scripts/config --file .config -e CONFIG_TCP_CONG_BBR
         ./scripts/config --file .config --set-str CONFIG_DEFAULT_TCP_CONG "bbr"
-        ./scripts/config --file .config --set-str CONFIG_DEFAULT_NET_SCHED "fq"
+        ./scripts/config --enable CONFIG_DEFAULT_FQ
+        ./scripts/config --file .config --set-str CONFIG_DEFAULT_NET_SCH "fq"
         ./scripts/config --disable CONFIG_SYSTEM_TRUSTED_KEYRING
         ./scripts/config --disable CONFIG_SYSTEM_REVOCATION_KEYS
         ./scripts/config --disable CONFIG_MODULE_SIG
