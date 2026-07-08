@@ -6,6 +6,7 @@
 ## 🧭 Quick Links
 * 📦 ⬇️ [Jump to Installation](#install)
 * 📦 ⬆️ [Jump to maintenance/uninstall kernel](#uninstall)
+* 🖧 [(**EXPERIMENTAL**) Jump to Server Kernel](#server-kernel)
 * 📊 [Jump to Hardware used and Benchmark Results](#benchmarks)
 
 ## ℹ️ Some info you might wanna know
@@ -147,6 +148,45 @@ Once the package is removed, you must refresh your GRUB configuration file so th
 ```bash
 sudo update-grub
 ```
+
+## 🖧 LazyKernel Server (Experimental) <a name="server-kernel"></a>
+---
+
+> [!NOTE]
+> This is a **separate build** from the desktop LazyKernel above, tuned specifically for headless/server workloads (file serving, self-hosted apps, etc.) rather than desktop responsiveness or gaming. If you're setting up a desktop or gaming machine, use the [regular install](#install) instead.
+
+> [!WARNING]
+> This mostly favors **Intel CPUs**, especially the **i3-8145U** (the exact hardware this build is tuned and tested on). AMD-specific power-management options (`amd_pstate`, etc.) are **not included** in this config — not because they'd conflict with the Intel ones, but simply because they haven't been tested. If you're on AMD hardware, add the equivalent options yourself; CPU-agnostic tuning (BBRv3, HZ/tick rate, preemption model, module signing) should still work fine regardless of vendor.
+
+### ⚙️ Server Features
+- **BBRv3** TCP congestion control with **fq** queueing (shared with desktop build)
+- **100Hz** tick rate with **NO_HZ_IDLE** — lower timer overhead, better idle power draw
+- **VOLUNTARY** preemption — favors power efficiency and throughput over desktop-style low-latency responsiveness
+- **schedutil** CPU frequency governor + Intel P-State/idle support — tuned for lower power draw on always-on hardware
+- Module signing disabled (for home servers)
+- Debug info stripped for smaller image size and faster builds
+- **x86-64-v3** optimizations, Clang/LLVM ThinLTO (same toolchain requirements as desktop — see the NVIDIA/DKMS warning above if applicable)
+
+### 📋 Requirements
+- **x86-64-v3** compatible CPU
+- **Debian based distro** (tested against Debian 13 Trixie, headless)
+- A backup kernel (**strongly recommended** — this is experimental and less battle-tested than the desktop build)
+
+### 📦 How to install
+Download `linux-image-*-lazyserver_*.deb` and `linux-headers-*-lazyserver_*.deb` from the **Releases** tab (tagged `-debug`, currently manual/draft releases only — no APT repo yet for the server build):
+
+```bash
+sudo dpkg -i linux-image-*-lazyserver*.deb linux-headers-*-lazyserver*.deb
+sudo reboot
+```
+
+Verify:
+```bash
+uname -r
+```
+
+> [!WARNING]
+> There is currently **no APT repository** for the server build — it's manual `dpkg -i` only per release. This may change in the future if there's demand for automatic updates.
 ---
 ### 🖥️ Test Hardware Configuration <a name="benchmarks"></a>
 Before looking at the benchmark data below, you can review the exact machine specs used to run these performance tests:
