@@ -153,7 +153,7 @@ sudo update-grub
 ---
 
 > [!NOTE]
-> This is a **separate build** from the desktop LazyKernel above, tuned specifically for headless/server workloads (file serving, self-hosted apps, etc.) rather than desktop responsiveness or gaming. If you're setting up a desktop or gaming machine, use the [regular install](#install) instead.
+> This is a **separate build** from the desktop LazyKernel above, tuned specifically for headless server workloads (file serving, self-hosted apps, etc.) rather than desktop responsiveness or gaming. If you're setting up a desktop or gaming machine, use the [regular install](#install) instead.
 
 > [!WARNING]
 > **HEADS UP!**
@@ -174,6 +174,11 @@ sudo update-grub
 - Module signing disabled (for home servers)
 - Debug info stripped for smaller image size and faster builds
 - **x86-64-v3** optimizations, Clang/LLVM ThinLTO (same toolchain requirements as desktop — see the NVIDIA/DKMS warning above if applicable)
+- Stripped input subsystems irrelevant to a headless box: no mouse, joystick, tablet, or touchscreen drivers
+- No sound subsystem (`CONFIG_SOUND` disabled) — this machine will **NOT** have audio
+- No Bluetooth stack
+- Legacy/discrete-GPU framebuffer drivers removed (kept modern DRM/KMS only, since the iGPU still needs it for console output)
+- Staging (experimental) drivers disabled
 
 ### 📋 Requirements
 - **x86-64-v3** compatible CPU
