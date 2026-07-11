@@ -80,7 +80,7 @@ jobs:
     - name: Build Kernel
       working-directory: linux
       run: |
-        cp "$GITHUB_WORKSPACE/configs/config" .config
+        cp "$GITHUB_WORKSPACE/configs/serverconfig" .config
         make LLVM=1 olddefconfig
         ./scripts/config --enable CONFIG_LTO_CLANG_THIN
         ./scripts/config --enable CONFIG_LD_IS_LLD
