@@ -40,16 +40,14 @@ jobs:
       uses: actions/cache@v5
       with:
         path: "linux-${{ steps.get-version.outputs.version }}"
-        key: "linux-${{ steps.get-version.outputs.version }}-${{ hashFiles('patches/*.patch') }}"
-        restore-keys: |
-          linux-${{ steps.get-version.outputs.version }}-
+        key: "linux-${{ steps.get-version.outputs.version }}-desktop-${{ hashFiles('patches/desktop/*.patch') }}"
     - name: Cache ccache
       uses: actions/cache@v5
       with:
         path: ~/.ccache
-        key: ccache-${{ steps.get-version.outputs.version }}-${{ github.run_id }}
+        key: ccache-${{ steps.get-version.outputs.version }}-desktop-${{ github.run_id }}
         restore-keys: |
-          ccache-${{ steps.get-version.outputs.version }}-
+          ccache-${{ steps.get-version.outputs.version }}-desktop-
     - name: Download kernel
       if: steps.cache-kernel.outputs.cache-hit != 'true'
       run: |
@@ -72,11 +70,11 @@ jobs:
       if: steps.cache-kernel.outputs.cache-hit != 'true'
       run: |
         patches=(
-          "$GITHUB_WORKSPACE/patches/0000-google-bbr3.patch"
-          "$GITHUB_WORKSPACE/patches/0001-bore.patch"
-          "$GITHUB_WORKSPACE/patches/0002-clear-patches.patch"
-          "$GITHUB_WORKSPACE/patches/0003-glitched-base.patch"
-          "$GITHUB_WORKSPACE/patches/0012-misc-additions.patch"
+          "$GITHUB_WORKSPACE/patches/desktop/0000-google-bbr3-desktop.patch"
+          "$GITHUB_WORKSPACE/patches/desktop/0001-bore.patch"
+          "$GITHUB_WORKSPACE/patches/desktop/0002-clear-patches.patch"
+          "$GITHUB_WORKSPACE/patches/desktop/0003-glitched-base.patch"
+          "$GITHUB_WORKSPACE/patches/desktop/0012-misc-additions.patch"
         )
         for patch in "${patches[@]}"; do
           patch -p1 < "$patch" || exit 1

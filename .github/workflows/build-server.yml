@@ -40,16 +40,14 @@ jobs:
       uses: actions/cache@v5
       with:
         path: "linux-${{ steps.get-version.outputs.version }}"
-        key: "linux-${{ steps.get-version.outputs.version }}-${{ hashFiles('patches/*.patch') }}"
-        restore-keys: |
-          linux-${{ steps.get-version.outputs.version }}-
+        key: "linux-${{ steps.get-version.outputs.version }}-server-${{ hashFiles('patches/server/*.patch') }}"
     - name: Cache ccache
       uses: actions/cache@v5
       with:
         path: ~/.ccache
-        key: ccache-${{ steps.get-version.outputs.version }}-${{ github.run_id }}
+        key: ccache-${{ steps.get-version.outputs.version }}-server-${{ github.run_id }}
         restore-keys: |
-          ccache-${{ steps.get-version.outputs.version }}-
+          ccache-${{ steps.get-version.outputs.version }}-server-
     - name: Download kernel
       if: steps.cache-kernel.outputs.cache-hit != 'true'
       run: |
@@ -72,7 +70,7 @@ jobs:
       if: steps.cache-kernel.outputs.cache-hit != 'true'
       run: |
         patches=(
-          "$GITHUB_WORKSPACE/patches/0000-google-bbr3.patch"
+          "$GITHUB_WORKSPACE/patches/server/0000-google-bbr3-server.patch"
         )
         for patch in "${patches[@]}"; do
           patch -p1 < "$patch" || exit 1
