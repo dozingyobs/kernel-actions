@@ -143,7 +143,7 @@ If you get a warning similar to:
 ```bash
 dpkg: warning: while removing linux-image-6.18.38-lazy, directory '/lib/modules/6.18.38-lazy' not empty so not removed
 ```
-Then it's best to remove that folder or any other old `lazykernel` modules as they can accumulate a bunch of space
+Then it's best to remove that folder or any other old `lazykernel` modules as they consume a decent amount (around 70mb) of space
 ```bash
 sudo rm -rf /lib/modules/6.18.38-lazy
 ```
