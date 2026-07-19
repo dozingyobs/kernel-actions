@@ -207,7 +207,7 @@ uname -r
 ```
 
 > [!WARNING]
-> There is currently **no APT repository** for the server build — it's manual `dpkg -i` only per release. This may change in the future if there's demand for automatic updates.
+> There is currently **no APT repository** for the server build — it's manual `dpkg -i` only per release. This may change in the future if there's demand for automatic updates. (which there isn't lolol)
 ---
 ### 🖥️ Test Hardware Configuration <a name="benchmarks"></a>
 Before looking at the benchmark data below, you can review the exact machine specs used to run these performance tests:
