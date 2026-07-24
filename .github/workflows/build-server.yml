@@ -148,3 +148,12 @@ jobs:
         prerelease: false
         tag_name: v${{ steps.get-version.outputs.version }}-debug
         name: Linux Kernel v${{ steps.get-version.outputs.version }} Build
+
+    - name: Notify Discord
+      if: always()
+      uses: sarisia/actions-status-discord@v1
+      with:
+        webhook: ${{ secrets.DISCORD_WEBHOOK }}
+        status: ${{ job.status }}
+        title: "LazyKernel Server Build"
+        description: "Kernel build finished for ${{ github.ref_name }}"   
