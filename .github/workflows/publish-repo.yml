@@ -72,7 +72,7 @@ jobs:
             curl -sL "$url" -o "site/debs/pool/$filename"
           done < download_map.txt
           rm -f download_map.txt
-
+          
       - name: Build Meta-Package
         run: |
           sudo apt-get install -y equivs
@@ -93,35 +93,35 @@ jobs:
            latest LazyKernel image and headers.
           EOF
 
-          cat > postinst << 'EOF'
+          equivs-build lazy-meta.control
+
+          # Splice postinst directly into the built .deb — equivs' automatic
+          # maintainer-script pickup is unreliable, so do it by hand instead.
+          META_DEB=$(ls linux-image-lazy-meta_*.deb | head -1)
+          mkdir -p meta-extract
+          dpkg-deb -R "$META_DEB" meta-extract
+
+          cat > meta-extract/DEBIAN/postinst << 'EOF'
           #!/bin/bash
           set -e
-
           KEEP=2
           RUNNING="$(uname -r)"
-
           mapfile -t PKGS < <(dpkg -l | awk '/^ii/ && /linux-image-.*-lazy/ {print $2}' | sort -V -r)
-
           COUNT=0
           for pkg in "${PKGS[@]}"; do
               COUNT=$((COUNT + 1))
-              if [ "$COUNT" -le "$KEEP" ]; then
-                  continue
-              fi
-              if [[ "$pkg" == *"$RUNNING"* ]]; then
-                  continue
-              fi
+              [ "$COUNT" -le "$KEEP" ] && continue
+              [[ "$pkg" == *"$RUNNING"* ]] && continue
               echo "lazykernel-autoremove: marking $pkg as auto-installed"
               apt-mark auto "$pkg" >/dev/null 2>&1 || true
           done
-
           exit 0
           EOF
-          chmod +x postinst
+          chmod 755 meta-extract/DEBIAN/postinst
 
-          equivs-build lazy-meta.control
-          mv linux-image-lazy-meta_*.deb site/debs/pool/
-          
+          dpkg-deb -b meta-extract "$META_DEB"
+          rm -rf meta-extract
+          mv "$META_DEB" site/debs/pool/
       - name: Verify Meta-Package
         run: |
           dpkg-deb -e site/debs/pool/linux-image-lazy-meta_*.deb /tmp/meta-control
