@@ -73,64 +73,100 @@ jobs:
           done < download_map.txt
           rm -f download_map.txt
           
-      - name: Build Meta-Package
+      - name: Build Meta-Packages
         run: |
           sudo apt-get install -y equivs
-          IMAGE_PKG_NAME=$(ls site/debs/pool/linux-image-*.deb | grep -v lazy-meta | head -1 | xargs basename | sed 's/_.*//')
-          HEADERS_PKG_NAME=$(ls site/debs/pool/linux-headers-*.deb | head -1 | xargs basename | sed 's/_.*//')
 
-          echo "Resolved image package: $IMAGE_PKG_NAME"
-          echo "Resolved headers package: $HEADERS_PKG_NAME"
+          # --- Resolve desktop packages ---
+          DESKTOP_IMAGE=$(ls site/debs/pool/linux-image-*-lazy_*.deb 2>/dev/null | grep -v lazyserver | grep -v lazy-meta | head -1 | xargs -r basename | sed 's/_.*//')
+          DESKTOP_HEADERS=$(ls site/debs/pool/linux-headers-*-lazy_*.deb 2>/dev/null | grep -v lazyserver | head -1 | xargs -r basename | sed 's/_.*//')
 
-          cat > lazy-meta.control << EOF
-          Package: linux-image-lazy-meta
+          # --- Resolve server packages ---
+          SERVER_IMAGE=$(ls site/debs/pool/linux-image-*-lazyserver_*.deb 2>/dev/null | head -1 | xargs -r basename | sed 's/_.*//')
+          SERVER_HEADERS=$(ls site/debs/pool/linux-headers-*-lazyserver_*.deb 2>/dev/null | head -1 | xargs -r basename | sed 's/_.*//')
+
+          echo "Desktop: $DESKTOP_IMAGE, $DESKTOP_HEADERS"
+          echo "Server:  $SERVER_IMAGE, $SERVER_HEADERS"
+
+          build_meta () {
+            local NAME="$1"          # e.g. linux-image-lazy-desktop-meta
+            local DEPENDS="$2"       # e.g. "linux-image-6.18.40-lazy, linux-headers-6.18.40-lazy"
+            local CONFLICTS="$3"     # e.g. linux-image-lazy-server-meta
+            local POSTINST_PATTERN="$4"  # awk regex to match this variant's image packages
+            local DESC="$5"
+
+            cat > "${NAME}.control" << EOF
+          Package: ${NAME}
           Version: ${RELEASE_TAG}
           Architecture: amd64
-          Depends: ${IMAGE_PKG_NAME}, ${HEADERS_PKG_NAME}
+          Depends: ${DEPENDS}
+          Conflicts: ${CONFLICTS}
           Maintainer: dozingyobs
-          Description: Meta-package tracking the latest LazyKernel build
+          Description: ${DESC}
            Installing this package ensures apt upgrade always pulls the
-           latest LazyKernel image and headers.
+           latest matching LazyKernel image and headers.
           EOF
 
-          equivs-build lazy-meta.control
+            equivs-build "${NAME}.control"
 
-          # Splice postinst directly into the built .deb — equivs' automatic
-          # maintainer-script pickup is unreliable, so do it by hand instead.
-          META_DEB=$(ls linux-image-lazy-meta_*.deb | head -1)
-          mkdir -p meta-extract
-          dpkg-deb -R "$META_DEB" meta-extract
+            local DEB
+            DEB=$(ls "${NAME}"_*.deb | head -1)
+            rm -rf meta-extract
+            dpkg-deb -R "$DEB" meta-extract
 
-          cat > meta-extract/DEBIAN/postinst << 'EOF'
+            cat > meta-extract/DEBIAN/postinst << EOF
           #!/bin/bash
           set -e
           KEEP=2
-          RUNNING="$(uname -r)"
-          mapfile -t PKGS < <(dpkg -l | awk '/^ii/ && /linux-image-.*-lazy/ {print $2}' | sort -V -r)
+          RUNNING="\$(uname -r)"
+          mapfile -t PKGS < <(dpkg -l | awk '/^ii/ && /${POSTINST_PATTERN}/ {print \$2}' | sort -V -r)
           COUNT=0
-          for pkg in "${PKGS[@]}"; do
-              COUNT=$((COUNT + 1))
-              [ "$COUNT" -le "$KEEP" ] && continue
-              [[ "$pkg" == *"$RUNNING"* ]] && continue
-              echo "lazykernel-autoremove: marking $pkg as auto-installed"
-              apt-mark auto "$pkg" >/dev/null 2>&1 || true
+          for pkg in "\${PKGS[@]}"; do
+              COUNT=\$((COUNT + 1))
+              [ "\$COUNT" -le "\$KEEP" ] && continue
+              [[ "\$pkg" == *"\$RUNNING"* ]] && continue
+              echo "lazykernel-autoremove: marking \$pkg as auto-installed"
+              apt-mark auto "\$pkg" >/dev/null 2>&1 || true
           done
           exit 0
           EOF
-          chmod 755 meta-extract/DEBIAN/postinst
+            chmod 755 meta-extract/DEBIAN/postinst
 
-          dpkg-deb -b meta-extract "$META_DEB"
-          rm -rf meta-extract
-          mv "$META_DEB" site/debs/pool/
-      - name: Verify Meta-Package
-        run: |
-          dpkg-deb -e site/debs/pool/linux-image-lazy-meta_*.deb /tmp/meta-control
-          if [ ! -x /tmp/meta-control/postinst ]; then
-            echo "::error::postinst missing or not executable in meta package!"
-            exit 1
+            dpkg-deb -b meta-extract "$DEB"
+            rm -rf meta-extract
+            mv "$DEB" site/debs/pool/
+          }
+
+          if [ -n "$DESKTOP_IMAGE" ]; then
+            build_meta "linux-image-lazy-desktop-meta" \
+                       "${DESKTOP_IMAGE}, ${DESKTOP_HEADERS}" \
+                       "linux-image-lazy-server-meta" \
+                       'linux-image-.*-lazy$' \
+                       "Meta-package tracking the latest LazyKernel Desktop build"
           fi
-          echo "postinst verified:"
-          cat /tmp/meta-control/postinst
+
+          if [ -n "$SERVER_IMAGE" ]; then
+            build_meta "linux-image-lazy-server-meta" \
+                       "${SERVER_IMAGE}, ${SERVER_HEADERS}" \
+                       "linux-image-lazy-desktop-meta" \
+                       'linux-image-.*-lazyserver' \
+                       "Meta-package tracking the latest LazyKernel Server build"
+          fi
+      - name: Verify Meta-Packages
+        run: |
+          for pkg in linux-image-lazy-desktop-meta linux-image-lazy-server-meta; do
+            DEB=$(ls site/debs/pool/${pkg}_*.deb 2>/dev/null | head -1)
+            if [ -z "$DEB" ]; then
+              echo "::warning::$pkg not found, skipping (may not have been built this run)"
+              continue
+            fi
+            dpkg-deb -e "$DEB" /tmp/check-$pkg
+            if [ ! -x "/tmp/check-$pkg/postinst" ]; then
+              echo "::error::postinst missing or not executable in $pkg!"
+              exit 1
+            fi
+            echo "$pkg verified ✓"
+          done
 
       - name: Generate Package Index
         run: |
