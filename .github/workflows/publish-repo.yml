@@ -72,7 +72,7 @@ jobs:
             curl -sL "$url" -o "site/debs/pool/$filename"
           done < download_map.txt
           rm -f download_map.txt
-          
+
       - name: Build Meta-Package
         run: |
           sudo apt-get install -y equivs
@@ -92,6 +92,32 @@ jobs:
            Installing this package ensures apt upgrade always pulls the
            latest LazyKernel image and headers.
           EOF
+
+          cat > postinst << 'EOF'
+          #!/bin/bash
+          set -e
+
+          KEEP=2
+          RUNNING="$(uname -r)"
+
+          mapfile -t PKGS < <(dpkg -l | awk '/^ii/ && /linux-image-.*-lazy/ {print $2}' | sort -V -r)
+
+          COUNT=0
+          for pkg in "${PKGS[@]}"; do
+              COUNT=$((COUNT + 1))
+              if [ "$COUNT" -le "$KEEP" ]; then
+                  continue
+              fi
+              if [[ "$pkg" == *"$RUNNING"* ]]; then
+                  continue
+              fi
+              echo "lazykernel-autoremove: marking $pkg as auto-installed"
+              apt-mark auto "$pkg" >/dev/null 2>&1 || true
+          done
+
+          exit 0
+          EOF
+          chmod +x postinst
 
           equivs-build lazy-meta.control
           mv linux-image-lazy-meta_*.deb site/debs/pool/
