@@ -52,6 +52,29 @@ jobs:
 
           echo "Resolved tag: $TAG"
           echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
+      
+      - name: Restore Existing Pool
+        continue-on-error: true
+        run: |
+          mkdir -p site/debs/pool
+          PAGES_URL="https://${{ github.repository_owner }}.github.io/$(basename ${{ github.repository }})/debs/Packages"
+
+          echo "Checking for existing package index at: $PAGES_URL"
+          if ! curl -sf "$PAGES_URL" -o /tmp/existing-Packages; then
+            echo "No existing Packages file found (likely first run) — starting fresh."
+            exit 0
+          fi
+
+          grep '^Filename:' /tmp/existing-Packages | awk '{print $2}' | while read -r relpath; do
+            fname=$(basename "$relpath")
+            dest="site/debs/pool/$fname"
+            if [ -f "$dest" ]; then
+              continue
+            fi
+            echo "Restoring: $fname"
+            base_url="https://${{ github.repository_owner }}.github.io/$(basename ${{ github.repository }})/debs"
+            curl -sf "$base_url/$relpath" -o "$dest" || echo "::warning::Failed to restore $fname"
+          done
 
       - name: Download Release Assets
         env:
