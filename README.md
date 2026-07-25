@@ -61,101 +61,99 @@ If you don't care then by all means go ahead and install it, however I am **NOT*
 ## 📦 ⬇️ How to install the prebuilt kernel? <a name="install"></a>
 ---
 
-### Step 1: Download the Releases
-Go to the **Releases** tab on GitHub and download both `linux-image-6.x.x-lazy_6.x.x-x_amd64.deb` AND `linux-headers-6.x.x-lazy_6.x.x-x_amd64.deb` files to your local machine.
+### Option A: Automated Installation via APT Repository
 
----
-
-### Step 2: Install the Packages
-Open your terminal, navigate to your download folder, and run `dpkg` to install both packages simultaneously:
-
-```bash
-sudo dpkg -i linux-image-6.*.deb linux-headers-6.*.deb
-```
-### Step 3: Reboot & Verify
-Reboot your machine to boot into the newly installed kernel:
-
-```bash
-sudo reboot
-```
-Once your system restarts, verify the installation by checking the active kernel version:
-```bash
-uname -r
-```
-### Automated Installation via APT Repository (Experimental)
-
-If you prefer automated updates instead of downloading `.deb` files manually every time, you can add the custom repository to your system.
+Automatic updates — no manual `.deb` downloads needed each release.
 
 #### 1. Add the Repository Source
-Run the following command to add the repository to your APT sources list:
 ```bash
 curl -fsSL https://dozingyobs.github.io/kernel-actions/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/kernel-actions.gpg
 echo "deb [signed-by=/usr/share/keyrings/kernel-actions.gpg] https://dozingyobs.github.io/kernel-actions/debs ./" | sudo tee /etc/apt/sources.list.d/kernel-actions.list
 ```
 
-#### 2. Update and Install
-Refresh your package lists and install the kernel packages using `apt`:
+#### 2. Install the Meta Package for Your Variant
+**High Performance Desktop / General Use**
 ```bash
 sudo apt update
-sudo apt install linux-image-lazy-meta
+sudo apt install linux-image-lazy-desktop-meta
 sudo apt upgrade
 ```
+**Headless home server — see section 🖧 LazyKernel Server (Experimental) first**
+```
+sudo apt update
+sudo apt install linux-image-lazy-server-meta
+sudo apt upgrade
+```
+The meta package tracks the latest build for your chosen variant, so future `apt upgrade` runs pull new kernels automatically. Old kernel versions are pruned automatically too (current + 1 previous kept).
 
 #### 3. Reboot & Verify
 ```bash
 sudo reboot
-```
-Once your system restarts, verify that the kernel is active:
-```bash
 uname -r
 ```
 
-## 📦 ⬆️ How to do basic maintenance or uninstall older versions of the kernel <a name="uninstall"></a>
 ---
 
-### Step 1: List all installed lazykernel (or lazy) packages
-Because these are manual installations, your system will NOT automatically remove older versions. Open your terminal and run this command to find your installed packages:
+### Option B: Manual Installation
 
+If you'd rather download and install `.deb` files by hand each release:
+
+**1. Download** both `linux-image-6.x.x-lazy_6.x.x-x_amd64.deb` and `linux-headers-6.x.x-lazy_6.x.x-x_amd64.deb` from the **Releases** tab.
+
+**2. Install:**
+```bash
+sudo dpkg -i linux-image-6.*.deb linux-headers-6.*.deb
+```
+
+**3. Reboot & Verify:**
+```bash
+sudo reboot
+uname -r
+```
+
+---
+
+## 📦 ⬆️ Basic Maintenance / Uninstalling Older Kernels <a name="uninstall"></a>
+---
+
+> [!NOTE]
+> If you installed via the **APT repository** (Option A), old kernels are pruned automatically — you shouldn't need this section under normal use. It's here for manual installs (Option B) or if you want to force a cleanup.
+
+**1. List installed LazyKernel packages:**
 ```bash
 dpkg -l | grep lazy
 ```
 
----
-
-### Step 2: Purge the old or unwanted kernels
-Copy the exact name of the older package from the list (making sure it does NOT match your active `uname -r` version) and completely remove it using `apt purge`:
-
+**2. Purge the old/unwanted version** (double-check it does NOT match your active `uname -r`):
 ```bash
-sudo apt purge linux-image-[PASTE-OLD-VERSION-HERE]-lazy linux-headers-[OLD-VERSION]-lazy
+sudo apt purge linux-image-[OLD-VERSION]-lazy linux-headers-[OLD-VERSION]-lazy
 ```
 
-#### 💡 Example:
-If running `dpkg -l | grep lazy` shows this output:
+**Example:** if `dpkg -l | grep lazy` shows:
 ```text
 ii  linux-image-6.18.30-lazy   6.18.30-1   amd64   Linux kernel binary image
 ii  linux-image-6.18.35-lazy   6.18.35-1   amd64   Linux kernel binary image
 ```
-And your current active kernel is `6.18.35-lazy`, you would remove the older `6.18.30` version by running:
+and your active kernel is `6.18.35-lazy`, remove the older one:
 ```bash
 sudo apt purge linux-image-6.18.30-lazy linux-headers-6.18.30-lazy
 ```
-If you get a warning similar to:
-```bash
+
+If you see a warning like:
+```
 dpkg: warning: while removing linux-image-6.18.38-lazy, directory '/lib/modules/6.18.38-lazy' not empty so not removed
 ```
-Then it's best to remove that folder or any other old `lazykernel` modules as they consume a decent amount (around 70mb) of space
+clean up the leftover module directory manually (~70MB each):
 ```bash
 sudo rm -rf /lib/modules/6.18.38-lazy
 ```
 
----
-
-### Step 3: Update your boot menu
-Once the package is removed, you must refresh your GRUB configuration file so the old options disappear from your system's boot selection screen:
-
+**3. Refresh GRUB** so removed kernels disappear from the boot menu:
 ```bash
 sudo update-grub
 ```
+
+---
 
 ## 🖧 LazyKernel Server (Experimental) <a name="server-kernel"></a>
 ---
@@ -166,13 +164,11 @@ sudo update-grub
 > [!WARNING]
 > **HEADS UP!**
 > I do **NOT** recommend installing this kernel (kernels from a server are meant to be boring and stable, not something to be "optimized") as I've slashed unnecessary kernel features and modules that affect compatibility or behavior you depend on.
-> 
+>
 > I advise you to have a backup kernel by any means necessary. If you install this, it's your responsibility now — not mine.
 
-
 > [!WARNING]
-> This mostly favors **Intel CPUs**, especially the **i3-8145U** (the exact hardware this build is tuned and tested on). AMD-specific power-management options (`amd_pstate`, etc.) are **not included** in this config — not because they'd conflict with the Intel ones, but simply because they haven't been tested. If you're on AMD hardware, the config options have been added however they have not been tested; CPU-agnostic tuning (BBRv3, HZ/tick rate, preemption model, module signing) should still work fine regardless of vendor.
-
+> This mostly favors **Intel CPUs**, especially the **i3-8145U** (the exact hardware this build is tuned and tested on). If you're on AMD hardware, the config options have been added however they have not been tested; CPU-agnostic tuning (BBRv3, HZ/tick rate, preemption model, module signing) should still work fine regardless of vendor.
 
 ### ⚙️ Server Features
 - **BBRv3** TCP congestion control with **fq** queueing (shared with desktop build)
@@ -193,9 +189,12 @@ sudo update-grub
 - **Debian based distro** (tested against Debian 13 Trixie, headless)
 - A backup kernel (**strongly recommended** — this is experimental and less battle-tested than the desktop build)
 
-### 📦 How to install
-Download `linux-image-*-lazyserver_*.deb` and `linux-headers-*-lazyserver_*.deb` from the **Releases** tab (tagged `-debug`, currently manual/draft releases only — no APT repo yet for the server build):
+### 📦 How to Install
 
+**Via APT** (see [Option A](#install) above) — use `linux-image-lazy-server-meta` instead of the desktop meta package.
+
+**Manual install:**
+Download `linux-image-*-lazyserver_*.deb` and `linux-headers-*-lazyserver_*.deb` from the **Releases** tab (tagged `-server`):
 ```bash
 sudo dpkg -i linux-image-*-lazyserver*.deb linux-headers-*-lazyserver*.deb
 sudo reboot
@@ -205,9 +204,6 @@ Verify:
 ```bash
 uname -r
 ```
-
-> [!WARNING]
-> There is currently **no APT repository** for the server build — it's manual `dpkg -i` only per release. This may change in the future if there's demand for automatic updates. (which there isn't lolol)
 ---
 ### 🖥️ Test Hardware Configuration <a name="benchmarks"></a>
 Before looking at the benchmark data below, you can review the exact machine specs used to run these performance tests:
