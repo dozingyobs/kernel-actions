@@ -121,6 +121,16 @@ jobs:
 
           equivs-build lazy-meta.control
           mv linux-image-lazy-meta_*.deb site/debs/pool/
+          
+      - name: Verify Meta-Package
+        run: |
+          dpkg-deb -e site/debs/pool/linux-image-lazy-meta_*.deb /tmp/meta-control
+          if [ ! -x /tmp/meta-control/postinst ]; then
+            echo "::error::postinst missing or not executable in meta package!"
+            exit 1
+          fi
+          echo "postinst verified:"
+          cat /tmp/meta-control/postinst
 
       - name: Generate Package Index
         run: |
