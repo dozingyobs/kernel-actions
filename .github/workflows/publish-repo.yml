@@ -2,8 +2,11 @@ name: Publish Release to APT Repo
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Release tag to publish (leave blank for latest)'
+      desktop_tag:
+        description: 'Desktop release tag to publish (leave blank to auto-find latest desktop release)'
+        required: false
+      server_tag:
+        description: 'Server release tag to publish (leave blank to auto-find latest server release)'
         required: false
 
 permissions:
@@ -36,22 +39,38 @@ jobs:
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
           KEY_ID=$(gpg --list-secret-keys --keyid-format=long | grep sec | awk '{print $2}' | cut -d'/' -f2)
           echo "GPG_KEY_ID=$KEY_ID" >> "$GITHUB_ENV"
-
-      - name: Resolve Release Tag
+          
+      - name: Resolve Release Tags
+        id: resolve-tags
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           REPO="${{ github.repository }}"
-          TAG="${{ github.event.inputs.tag }}"
 
-          if [ -z "$TAG" ]; then
-            TAG=$(curl -sH "Authorization: token $GITHUB_TOKEN" \
-              "https://api.github.com/repos/$REPO/releases/latest" \
-              | jq -r '.tag_name')
+          find_latest_by_variant () {
+            local PATTERN="$1"   # e.g. "lazyserver" or "lazy_"
+            curl -sH "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/$REPO/releases?per_page=30" \
+              | jq -r --arg pat "$PATTERN" '
+                  .[] | select(.assets[]?.name | test($pat)) | .tag_name
+                ' | head -1
+          }
+
+          DESKTOP_TAG="${{ github.event.inputs.desktop_tag }}"
+          if [ -z "$DESKTOP_TAG" ]; then
+            DESKTOP_TAG=$(find_latest_by_variant '-lazy_')
           fi
 
-          echo "Resolved tag: $TAG"
-          echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
+          SERVER_TAG="${{ github.event.inputs.server_tag }}"
+          if [ -z "$SERVER_TAG" ]; then
+            SERVER_TAG=$(find_latest_by_variant '-lazyserver')
+          fi
+
+          echo "Resolved desktop tag: ${DESKTOP_TAG:-none found}"
+          echo "Resolved server tag: ${SERVER_TAG:-none found}"
+
+          echo "desktop_tag=$DESKTOP_TAG" >> "$GITHUB_OUTPUT"
+          echo "server_tag=$SERVER_TAG" >> "$GITHUB_OUTPUT"
       
       - name: Restore Existing Pool
         continue-on-error: true
@@ -83,18 +102,23 @@ jobs:
           mkdir -p site/debs/pool
           REPO="${{ github.repository }}"
 
-          echo "Processing assets for release: $RELEASE_TAG"
+          for TAG in "${{ steps.resolve-tags.outputs.desktop_tag }}" "${{ steps.resolve-tags.outputs.server_tag }}"; do
+            if [ -z "$TAG" ]; then
+              continue
+            fi
+            echo "Processing assets for release: $TAG"
 
-          curl -sH "Authorization: token $GITHUB_TOKEN" \
-            "https://api.github.com/repos/$REPO/releases/tags/$RELEASE_TAG" \
-            | jq -r '.assets[] | select(.name | endswith(".deb")) | "\(.name) \(.browser_download_url)"' > download_map.txt
+            curl -sH "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/$REPO/releases/tags/$TAG" \
+              | jq -r '.assets[] | select(.name | endswith(".deb")) | "\(.name) \(.browser_download_url)"' > download_map.txt
 
-          while read -r filename url; do
-            [ -z "$filename" ] && continue
-            echo "Downloading: $filename"
-            curl -sL "$url" -o "site/debs/pool/$filename"
-          done < download_map.txt
-          rm -f download_map.txt
+            while read -r filename url; do
+              [ -z "$filename" ] && continue
+              echo "Downloading: $filename"
+              curl -sL "$url" -o "site/debs/pool/$filename"
+            done < download_map.txt
+            rm -f download_map.txt
+          done
           
       - name: Build Meta-Packages
         run: |
