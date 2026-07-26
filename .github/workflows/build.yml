@@ -3,29 +3,44 @@ on:
   push:
     tags:
       - 'v[0-9]*'
-  workflow_dispatch: 
+  workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - moniker: stable
+            series: "7.1"
+          - moniker: longterm
+            series: "6.18"
+
     steps:
     - name: Fetch and Verify Kernel Version
       id: get-version
       run: |
-        JSON_DATA=$(curl -sSL --fail "https://kernel.org/releases.json")        
+        JSON_DATA=$(curl -sSL --fail "https://kernel.org/releases.json")
         if [ -z "$JSON_DATA" ]; then
             echo "Error: Failed to fetch release data from kernel.org API."
             exit 1
         fi
-        VERSION=$(echo "$JSON_DATA" | grep -A 4 '"moniker": "longterm"' | grep '"version":' | head -n 1 | awk -F'"' '{print $4}')        
+        VERSION=$(echo "$JSON_DATA" | jq -r --arg moniker "${{ matrix.moniker }}" --arg series "${{ matrix.series }}" '
+          .releases[]
+          | select(.moniker == $moniker)
+          | select($series == "" or (.version | startswith($series)))
+          | .version
+        ' | head -n1)
         if [ -z "$VERSION" ]; then
-            echo "Error: Could not parse longterm version from JSON response."
+            echo "Error: Could not find a ${{ matrix.moniker }} release matching series '${{ matrix.series }}'."
             exit 1
         fi
-        echo "The latest longterm kernel version is: $VERSION"
+        MAJOR=$(echo "$VERSION" | cut -d. -f1)
+        echo "Resolved ${{ matrix.moniker }} (series='${{ matrix.series }}') -> $VERSION (v${MAJOR}.x)"
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
     - name: Checkout repository
       uses: actions/checkout@v5
     - name: Free disk space
@@ -40,20 +55,21 @@ jobs:
       uses: actions/cache@v5
       with:
         path: "linux-${{ steps.get-version.outputs.version }}"
-        key: "linux-${{ steps.get-version.outputs.version }}-desktop-${{ hashFiles('patches/desktop/*.patch') }}"
+        key: "linux-${{ steps.get-version.outputs.version }}-desktop-${{ matrix.moniker }}-${{ hashFiles(format('patches/desktop/{0}/*.patch', matrix.moniker)) }}"
     - name: Cache ccache
       uses: actions/cache@v5
       with:
         path: ~/.ccache
-        key: ccache-${{ steps.get-version.outputs.version }}-desktop-${{ github.run_id }}
+        key: ccache-${{ steps.get-version.outputs.version }}-desktop-${{ matrix.moniker }}-${{ github.run_id }}
         restore-keys: |
-          ccache-${{ steps.get-version.outputs.version }}-desktop-
+          ccache-${{ steps.get-version.outputs.version }}-desktop-${{ matrix.moniker }}-
     - name: Download kernel
       if: steps.cache-kernel.outputs.cache-hit != 'true'
       run: |
         VERSION="${{ steps.get-version.outputs.version }}"
-        echo "Cache miss! Downloading version $VERSION..."
-        wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$VERSION.tar.xz
+        MAJOR="${{ steps.get-version.outputs.major }}"
+        echo "Cache miss! Downloading version $VERSION from v${MAJOR}.x..."
+        wget "https://cdn.kernel.org/pub/linux/kernel/v${MAJOR}.x/linux-$VERSION.tar.xz"
         tar -xf "linux-$VERSION.tar.xz"
         rm "linux-$VERSION.tar.xz"
     - name: Set up symlink directory
@@ -69,14 +85,13 @@ jobs:
       working-directory: linux
       if: steps.cache-kernel.outputs.cache-hit != 'true'
       run: |
-        patches=(
-          "$GITHUB_WORKSPACE/patches/desktop/0000-google-bbr3-desktop.patch"
-          "$GITHUB_WORKSPACE/patches/desktop/0001-bore.patch"
-          "$GITHUB_WORKSPACE/patches/desktop/0002-clear-patches.patch"
-          "$GITHUB_WORKSPACE/patches/desktop/0003-glitched-base.patch"
-          "$GITHUB_WORKSPACE/patches/desktop/0012-misc-additions.patch"
-        )
-        for patch in "${patches[@]}"; do
+        PATCH_DIR="$GITHUB_WORKSPACE/patches/desktop/${{ matrix.moniker }}"
+        if [ ! -d "$PATCH_DIR" ] || [ -z "$(ls -A "$PATCH_DIR"/*.patch 2>/dev/null)" ]; then
+          echo "No patches found in $PATCH_DIR, skipping."
+          exit 0
+        fi
+        for patch in "$PATCH_DIR"/*.patch; do
+          echo "Applying $(basename "$patch") to ${{ matrix.moniker }} (${{ steps.get-version.outputs.version }})..."
           patch -p1 < "$patch" || exit 1
         done
     - name: Build Kernel
@@ -135,8 +150,8 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         draft: true
         prerelease: false
-        tag_name: v${{ steps.get-version.outputs.version }}-debug
-        name: Linux Kernel v${{ steps.get-version.outputs.version }} Build
+        tag_name: v${{ steps.get-version.outputs.version }}-${{ matrix.moniker }}-debug
+        name: Linux Kernel v${{ steps.get-version.outputs.version }} (${{ matrix.moniker }}) Build
 
     - name: Notify Discord
       if: always()
@@ -144,5 +159,5 @@ jobs:
       with:
         webhook: ${{ secrets.DISCORD_WEBHOOK }}
         status: ${{ job.status }}
-        title: "LazyKernel Desktop Build"
-        description: "Kernel build finished for ${{ github.ref_name }}"
+        title: "LazyKernel Desktop Build (${{ matrix.moniker }})"
+        description: "Kernel ${{ matrix.moniker }} build finished for ${{ github.ref_name }} — v${{ steps.get-version.outputs.version }}"
