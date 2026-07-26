@@ -2,11 +2,14 @@ name: Publish Release to APT Repo
 on:
   workflow_dispatch:
     inputs:
-      desktop_tag:
-        description: 'Desktop release tag to publish (leave blank to auto-find latest desktop release)'
+      stable_tag:
+        description: 'Desktop stable release tag to publish (leave blank to auto-find latest)'
+        required: false
+      longterm_tag:
+        description: 'Desktop longterm release tag to publish (leave blank to auto-find latest)'
         required: false
       server_tag:
-        description: 'Server release tag to publish (leave blank to auto-find latest server release)'
+        description: 'Server release tag to publish (leave blank to auto-find latest)'
         required: false
 
 permissions:
@@ -30,7 +33,7 @@ jobs:
       - name: Install APT Utilities
         run: |
           sudo apt-get update
-          sudo apt-get install -y dpkg-dev apt-utils gnupg
+          sudo apt-get install -y dpkg-dev apt-utils gnupg equivs
 
       - name: Import GPG Signing Key
         env:
@@ -39,7 +42,7 @@ jobs:
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
           KEY_ID=$(gpg --list-secret-keys --keyid-format=long | grep sec | awk '{print $2}' | cut -d'/' -f2)
           echo "GPG_KEY_ID=$KEY_ID" >> "$GITHUB_ENV"
-          
+
       - name: Resolve Release Tags
         id: resolve-tags
         env:
@@ -47,66 +50,76 @@ jobs:
         run: |
           REPO="${{ github.repository }}"
 
-          find_latest_by_variant () {
-            local PATTERN="$1"   # e.g. "lazyserver" or "lazy_"
+          # Desktop kernel builds are tagged v<version>-<moniker>-debug (see Build Kernel workflow).
+          find_latest_by_tag_suffix () {
+            local SUFFIX="$1"   # e.g. "-stable-debug"
+            curl -sH "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/$REPO/releases?per_page=30" \
+              | jq -r --arg suf "$SUFFIX" '
+                  [.[] | select(.tag_name | endswith($suf))] | .[0].tag_name // empty
+                '
+          }
+
+          # Server builds carry no moniker (single-track) — match by asset name instead.
+          find_latest_by_asset_pattern () {
+            local PATTERN="$1"
             curl -sH "Authorization: token $GITHUB_TOKEN" \
               "https://api.github.com/repos/$REPO/releases?per_page=30" \
               | jq -r --arg pat "$PATTERN" '
-                  .[] | select(.assets[]?.name | test($pat)) | .tag_name
-                ' | head -1
+                  [.[] | select(.assets[]?.name | test($pat))] | .[0].tag_name // empty
+                '
           }
 
-          DESKTOP_TAG="${{ github.event.inputs.desktop_tag }}"
-          if [ -z "$DESKTOP_TAG" ]; then
-            DESKTOP_TAG=$(find_latest_by_variant '-lazy_')
-          fi
+          STABLE_TAG="${{ github.event.inputs.stable_tag }}"
+          [ -z "$STABLE_TAG" ] && STABLE_TAG=$(find_latest_by_tag_suffix '-stable-debug')
+
+          LONGTERM_TAG="${{ github.event.inputs.longterm_tag }}"
+          [ -z "$LONGTERM_TAG" ] && LONGTERM_TAG=$(find_latest_by_tag_suffix '-longterm-debug')
 
           SERVER_TAG="${{ github.event.inputs.server_tag }}"
-          if [ -z "$SERVER_TAG" ]; then
-            SERVER_TAG=$(find_latest_by_variant '-lazyserver')
-          fi
+          [ -z "$SERVER_TAG" ] && SERVER_TAG=$(find_latest_by_asset_pattern '-lazyserver')
 
-          echo "Resolved desktop tag: ${DESKTOP_TAG:-none found}"
-          echo "Resolved server tag: ${SERVER_TAG:-none found}"
+          echo "Resolved stable tag:   ${STABLE_TAG:-none found}"
+          echo "Resolved longterm tag: ${LONGTERM_TAG:-none found}"
+          echo "Resolved server tag:   ${SERVER_TAG:-none found}"
 
-          echo "desktop_tag=$DESKTOP_TAG" >> "$GITHUB_OUTPUT"
-          echo "server_tag=$SERVER_TAG" >> "$GITHUB_OUTPUT"
-      
-      - name: Restore Existing Pool
+          echo "stable_tag=$STABLE_TAG"     >> "$GITHUB_OUTPUT"
+          echo "longterm_tag=$LONGTERM_TAG" >> "$GITHUB_OUTPUT"
+          echo "server_tag=$SERVER_TAG"     >> "$GITHUB_OUTPUT"
+
+      - name: Restore Existing Pools
         continue-on-error: true
         run: |
-          mkdir -p site/debs/pool
-          PAGES_URL="https://${{ github.repository_owner }}.github.io/$(basename ${{ github.repository }})/debs/Packages"
-
-          echo "Checking for existing package index at: $PAGES_URL"
-          if ! curl -sf "$PAGES_URL" -o /tmp/existing-Packages; then
-            echo "No existing Packages file found (likely first run) — starting fresh."
-            exit 0
-          fi
-
-          grep '^Filename:' /tmp/existing-Packages | awk '{print $2}' | while read -r relpath; do
-            fname=$(basename "$relpath")
-            dest="site/debs/pool/$fname"
-            if [ -f "$dest" ]; then
+          BASE_URL="https://${{ github.repository_owner }}.github.io/$(basename ${{ github.repository }})"
+          for TRACK in stable longterm server; do
+            mkdir -p "site/$TRACK/pool"
+            PACKAGES_URL="$BASE_URL/$TRACK/Packages"
+            echo "Checking for existing package index: $PACKAGES_URL"
+            if ! curl -sf "$PACKAGES_URL" -o "/tmp/existing-Packages-$TRACK"; then
+              echo "No existing Packages for $TRACK (likely first run) — starting fresh."
               continue
             fi
-            echo "Restoring: $fname"
-            base_url="https://${{ github.repository_owner }}.github.io/$(basename ${{ github.repository }})/debs"
-            curl -sf "$base_url/$relpath" -o "$dest" || echo "::warning::Failed to restore $fname"
+            grep '^Filename:' "/tmp/existing-Packages-$TRACK" | awk '{print $2}' | while read -r relpath; do
+              fname=$(basename "$relpath")
+              dest="site/$TRACK/pool/$fname"
+              [ -f "$dest" ] && continue
+              echo "Restoring: $fname ($TRACK)"
+              curl -sf "$BASE_URL/$TRACK/$relpath" -o "$dest" || echo "::warning::Failed to restore $fname ($TRACK)"
+            done
           done
 
       - name: Download Release Assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir -p site/debs/pool
           REPO="${{ github.repository }}"
 
-          for TAG in "${{ steps.resolve-tags.outputs.desktop_tag }}" "${{ steps.resolve-tags.outputs.server_tag }}"; do
-            if [ -z "$TAG" ]; then
-              continue
-            fi
-            echo "Processing assets for release: $TAG"
+          download_track () {
+            local TRACK="$1"
+            local TAG="$2"
+            [ -z "$TAG" ] && { echo "No tag resolved for $TRACK, skipping download."; return 0; }
+            mkdir -p "site/$TRACK/pool"
+            echo "Processing assets for $TRACK from release: $TAG"
 
             curl -sH "Authorization: token $GITHUB_TOKEN" \
               "https://api.github.com/repos/$REPO/releases/tags/$TAG" \
@@ -114,44 +127,53 @@ jobs:
 
             while read -r filename url; do
               [ -z "$filename" ] && continue
-              echo "Downloading: $filename"
-              curl -sL "$url" -o "site/debs/pool/$filename"
+              echo "Downloading: $filename -> $TRACK"
+              curl -sL "$url" -o "site/$TRACK/pool/$filename"
             done < download_map.txt
             rm -f download_map.txt
-          done
-          
+          }
+
+          download_track "stable"   "${{ steps.resolve-tags.outputs.stable_tag }}"
+          download_track "longterm" "${{ steps.resolve-tags.outputs.longterm_tag }}"
+          download_track "server"   "${{ steps.resolve-tags.outputs.server_tag }}"
+
       - name: Build Meta-Packages
         run: |
-          sudo apt-get install -y equivs
-
-          # --- Resolve desktop packages ---
-          DESKTOP_IMAGE=$(ls site/debs/pool/linux-image-*-lazy_*.deb 2>/dev/null | grep -v lazyserver | grep -v lazy-meta | head -1 | xargs -r basename | sed 's/_.*//')
-          DESKTOP_HEADERS=$(ls site/debs/pool/linux-headers-*-lazy_*.deb 2>/dev/null | grep -v lazyserver | head -1 | xargs -r basename | sed 's/_.*//')
-
-          # --- Resolve server packages ---
-          SERVER_IMAGE=$(ls site/debs/pool/linux-image-*-lazyserver_*.deb 2>/dev/null | head -1 | xargs -r basename | sed 's/_.*//')
-          SERVER_HEADERS=$(ls site/debs/pool/linux-headers-*-lazyserver_*.deb 2>/dev/null | head -1 | xargs -r basename | sed 's/_.*//')
-
-          echo "Desktop: $DESKTOP_IMAGE, $DESKTOP_HEADERS"
-          echo "Server:  $SERVER_IMAGE, $SERVER_HEADERS"
-
           build_meta () {
-            local NAME="$1"          # e.g. linux-image-lazy-desktop-meta
-            local DEPENDS="$2"       # e.g. "linux-image-6.18.40-lazy, linux-headers-6.18.40-lazy"
-            local CONFLICTS="$3"     # e.g. linux-image-lazy-server-meta
-            local POSTINST_PATTERN="$4"  # awk regex to match this variant's image packages
-            local DESC="$5"
+            local TRACK="$1"           # e.g. stable
+            local NAME="$2"            # e.g. linux-image-lazy-stable-meta
+            local IMAGE_GLOB="$3"      # e.g. 'linux-image-*-lazy_*.deb'
+            local HEADERS_GLOB="$4"    # e.g. 'linux-headers-*-lazy_*.deb'
+            local POSTINST_PATTERN="$5"
+            local DESC="$6"
+
+            local IMAGE_DEB HEADERS_DEB IMAGE HEADERS VERSION
+            IMAGE_DEB=$(ls site/$TRACK/pool/$IMAGE_GLOB 2>/dev/null | grep -v -- '-meta' | head -1)
+            HEADERS_DEB=$(ls site/$TRACK/pool/$HEADERS_GLOB 2>/dev/null | head -1)
+
+            if [ -z "$IMAGE_DEB" ]; then
+              echo "::warning::No image package found for $TRACK, skipping meta-package"
+              return 0
+            fi
+
+            IMAGE=$(basename "$IMAGE_DEB" | sed 's/_.*//')
+            HEADERS=$(basename "$HEADERS_DEB" 2>/dev/null | sed 's/_.*//')
+            # Derive version from the actual image package's control version field,
+            # rather than an undefined RELEASE_TAG (previous script referenced this
+            # but never set it, producing an empty Version field).
+            VERSION=$(dpkg-deb -f "$IMAGE_DEB" Version)
+
+            echo "$TRACK meta: image=$IMAGE headers=$HEADERS version=$VERSION"
 
             cat > "${NAME}.control" << EOF
           Package: ${NAME}
-          Version: ${RELEASE_TAG}
+          Version: ${VERSION}
           Architecture: amd64
-          Depends: ${DEPENDS}
-          Conflicts: ${CONFLICTS}
+          Depends: ${IMAGE}${HEADERS:+, ${HEADERS}}
           Maintainer: dozingyobs
           Description: ${DESC}
            Installing this package ensures apt upgrade always pulls the
-           latest matching LazyKernel image and headers.
+           latest matching LazyKernel image and headers for this track.
           EOF
 
             equivs-build "${NAME}.control"
@@ -181,30 +203,32 @@ jobs:
 
             dpkg-deb -b meta-extract "$DEB"
             rm -rf meta-extract
-            mv "$DEB" site/debs/pool/
+            mv "$DEB" "site/$TRACK/pool/"
           }
 
-          if [ -n "$DESKTOP_IMAGE" ]; then
-            build_meta "linux-image-lazy-desktop-meta" \
-                       "${DESKTOP_IMAGE}, ${DESKTOP_HEADERS}" \
-                       "linux-image-lazy-server-meta" \
-                       'linux-image-.*-lazy$' \
-                       "Meta-package tracking the latest LazyKernel Desktop build"
-          fi
+          build_meta "stable"   "linux-image-lazy-stable-meta"   \
+                     'linux-image-*-lazy_*.deb' 'linux-headers-*-lazy_*.deb' \
+                     'linux-image-.*-lazy$' \
+                     "Meta-package tracking the latest LazyKernel Desktop (stable) build"
 
-          if [ -n "$SERVER_IMAGE" ]; then
-            build_meta "linux-image-lazy-server-meta" \
-                       "${SERVER_IMAGE}, ${SERVER_HEADERS}" \
-                       "linux-image-lazy-desktop-meta" \
-                       'linux-image-.*-lazyserver' \
-                       "Meta-package tracking the latest LazyKernel Server build"
-          fi
+          build_meta "longterm" "linux-image-lazy-longterm-meta" \
+                     'linux-image-*-lazy_*.deb' 'linux-headers-*-lazy_*.deb' \
+                     'linux-image-.*-lazy$' \
+                     "Meta-package tracking the latest LazyKernel Desktop (longterm) build"
+
+          build_meta "server"   "linux-image-lazy-server-meta"   \
+                     'linux-image-*-lazyserver_*.deb' 'linux-headers-*-lazyserver_*.deb' \
+                     'linux-image-.*-lazyserver' \
+                     "Meta-package tracking the latest LazyKernel Server build"
+
       - name: Verify Meta-Packages
         run: |
-          for pkg in linux-image-lazy-desktop-meta linux-image-lazy-server-meta; do
-            DEB=$(ls site/debs/pool/${pkg}_*.deb 2>/dev/null | head -1)
+          for entry in "stable:linux-image-lazy-stable-meta" "longterm:linux-image-lazy-longterm-meta" "server:linux-image-lazy-server-meta"; do
+            TRACK="${entry%%:*}"
+            pkg="${entry##*:}"
+            DEB=$(ls site/$TRACK/pool/${pkg}_*.deb 2>/dev/null | head -1)
             if [ -z "$DEB" ]; then
-              echo "::warning::$pkg not found, skipping (may not have been built this run)"
+              echo "::warning::$pkg not found in $TRACK, skipping (may not have been built this run)"
               continue
             fi
             dpkg-deb -e "$DEB" /tmp/check-$pkg
@@ -215,25 +239,31 @@ jobs:
             echo "$pkg verified ✓"
           done
 
-      - name: Generate Package Index
+      - name: Generate Package Indexes
         run: |
-          cd site/debs
-          rm -f Packages Packages.gz Release Release.gpg InRelease
-          dpkg-scanpackages pool /dev/null > Packages
-          gzip -k -f Packages
-          apt-ftparchive -o APT::FTPArchive::Release::Origin="kernel-actions" \
-                         -o APT::FTPArchive::Release::Label="kernel-actions" \
-                         -o APT::FTPArchive::Release::Suite="stable" \
-                         -o APT::FTPArchive::Release::Codename="kernel-actions" \
-                         release . > Release
-          cd ../..
+          for TRACK in stable longterm server; do
+            [ -d "site/$TRACK/pool" ] || continue
+            cd "site/$TRACK"
+            rm -f Packages Packages.gz Release Release.gpg InRelease
+            dpkg-scanpackages pool /dev/null > Packages
+            gzip -k -f Packages
+            apt-ftparchive -o APT::FTPArchive::Release::Origin="kernel-actions" \
+                           -o APT::FTPArchive::Release::Label="kernel-actions" \
+                           -o APT::FTPArchive::Release::Suite="$TRACK" \
+                           -o APT::FTPArchive::Release::Codename="$TRACK" \
+                           release . > Release
+            cd ../..
+          done
 
       - name: Sign the Repository
         run: |
-          cd site/debs
-          gpg --batch --yes --default-key "$GPG_KEY_ID" -abs -o Release.gpg Release
-          gpg --batch --yes --default-key "$GPG_KEY_ID" --clearsign -o InRelease Release
-          cd ../..
+          for TRACK in stable longterm server; do
+            [ -f "site/$TRACK/Release" ] || continue
+            cd "site/$TRACK"
+            gpg --batch --yes --default-key "$GPG_KEY_ID" -abs -o Release.gpg Release
+            gpg --batch --yes --default-key "$GPG_KEY_ID" --clearsign -o InRelease Release
+            cd ../..
+          done
 
       - name: Copy public key into site
         run: cp pubkey.gpg site/pubkey.gpg
