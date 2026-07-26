@@ -3,7 +3,7 @@
 
 ![Latest Commit](https://img.shields.io/github/last-commit/dozingyobs/kernel-actions)
 > [!NOTE]
-> today i just realized tkg already has a github actions pipeline and a prebuilt kernel in the first place, which uh kind of makes this project a whole lot useless i think
+> 07/26/2026 today i just realized tkg already has a github actions pipeline and a prebuilt kernel in the first place, which uh kind of makes this project a whole lot useless i think
 
 ## 🧭 Quick Links
 * 📦 ⬇️ [Jump to Installation](#install)
