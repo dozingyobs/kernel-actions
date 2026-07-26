@@ -57,78 +57,96 @@ If you're running a standard Ubuntu/Mint/Pop installation and don't know what **
 
 If you don't care then by all means go ahead and install it, however I am **NOT** responsible if your system ends up being unbootable lol
 
-
 ## 📦 ⬇️ How to install the prebuilt kernel? <a name="install"></a>
 ---
-
 ### Option A: Automated Installation via APT Repository
-
 Automatic updates — no manual `.deb` downloads needed each release.
 
-#### 1. Add the Repository Source
+LazyKernel is published as **three independent tracks**. Add only the source(s) you want — you can enable more than one at a time (e.g. `stable` and `server` on different machines, or `stable` + `longterm` side-by-side on the same desktop if you want to dual-boot between them).
+
+| Track | What it tracks | Best for |
+|---|---|---|
+| `stable` | Latest mainline **stable** kernel (currently 7.1.x) | Desktop / general use, newest features |
+| `longterm` | Pinned **6.18.x LTS** branch | Desktop users who want a longer-lived, less-churny base |
+| `server` | Power/efficiency-tuned server build | Headless home server — see 🖧 LazyKernel Server (Experimental) first |
+
+#### 1. Import the Signing Key
 ```bash
 curl -fsSL https://dozingyobs.github.io/kernel-actions/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/kernel-actions.gpg
-echo "deb [signed-by=/usr/share/keyrings/kernel-actions.gpg] https://dozingyobs.github.io/kernel-actions/debs ./" | sudo tee /etc/apt/sources.list.d/kernel-actions.list
 ```
 
-#### 2. Install the Meta Package for Your Variant
-**High Performance Desktop / General Use**
+#### 2. Add the Track(s) You Want
+**Desktop — stable:**
+```bash
+echo "deb [signed-by=/usr/share/keyrings/kernel-actions.gpg] https://dozingyobs.github.io/kernel-actions/stable ./" | sudo tee /etc/apt/sources.list.d/kernel-actions-stable.list
+```
+**Desktop — longterm (6.18.x LTS):**
+```bash
+echo "deb [signed-by=/usr/share/keyrings/kernel-actions.gpg] https://dozingyobs.github.io/kernel-actions/longterm ./" | sudo tee /etc/apt/sources.list.d/kernel-actions-longterm.list
+```
+**Server:**
+```bash
+echo "deb [signed-by=/usr/share/keyrings/kernel-actions.gpg] https://dozingyobs.github.io/kernel-actions/server ./" | sudo tee /etc/apt/sources.list.d/kernel-actions-server.list
+```
+
+#### 3. Install the Meta-Package for Your Track
 ```bash
 sudo apt update
-sudo apt install linux-image-lazy-desktop-meta
-sudo apt upgrade
 ```
-**Headless home server — see section 🖧 LazyKernel Server (Experimental) first**
+**Stable:**
+```bash
+sudo apt install linux-image-lazy-stable-meta
 ```
-sudo apt update
+**Longterm:**
+```bash
+sudo apt install linux-image-lazy-longterm-meta
+```
+**Server:**
+```bash
 sudo apt install linux-image-lazy-server-meta
+```
+```bash
 sudo apt upgrade
 ```
-The meta package tracks the latest build for your chosen variant, so future `apt upgrade` runs pull new kernels automatically. Old kernel versions are pruned automatically too (current + 1 previous kept).
+Each meta-package tracks the latest build for its own track independently, so future `apt upgrade` runs pull new kernels automatically. Old kernel versions are pruned automatically too (current + 1 previous kept, per track).
 
-#### 3. Reboot & Verify
+#### 4. Reboot & Verify
 ```bash
 sudo reboot
 uname -r
 ```
-
 ---
-
 ### Option B: Manual Installation
-
 If you'd rather download and install `.deb` files by hand each release:
 
-**1. Download** both `linux-image-6.x.x-lazy_6.x.x-x_amd64.deb` and `linux-headers-6.x.x-lazy_6.x.x-x_amd64.deb` from the **Releases** tab.
+**1. Download** both `linux-image-*-lazy_*_amd64.deb` and `linux-headers-*-lazy_*_amd64.deb` for your track from the **Releases** tab — stable builds are tagged `*-stable-debug`, longterm builds `*-longterm-debug`, server builds carry no moniker.
 
 **2. Install:**
 ```bash
-sudo dpkg -i linux-image-6.*.deb linux-headers-6.*.deb
+sudo dpkg -i linux-image-*.deb linux-headers-*.deb
 ```
-
 **3. Reboot & Verify:**
 ```bash
 sudo reboot
 uname -r
 ```
-
 ---
-
 ## 📦 ⬆️ Basic Maintenance / Uninstalling Older Kernels <a name="uninstall"></a>
 ---
+> [!NOTE]
+> If you installed via the **APT repository** (Option A), old kernels are pruned automatically per track — you shouldn't need this section under normal use. It's here for manual installs (Option B) or if you want to force a cleanup.
 
 > [!NOTE]
-> If you installed via the **APT repository** (Option A), old kernels are pruned automatically — you shouldn't need this section under normal use. It's here for manual installs (Option B) or if you want to force a cleanup.
+> Both `stable` and `longterm` desktop builds use the same `-lazy` package suffix (only the version number differs — e.g. `7.1.5-lazy` vs `6.18.40-lazy`), so if you have both tracks enabled, `dpkg -l | grep lazy` will list kernels from both together. Check the version number against which track you meant to prune.
 
 **1. List installed LazyKernel packages:**
 ```bash
 dpkg -l | grep lazy
 ```
-
 **2. Purge the old/unwanted version** (double-check it does NOT match your active `uname -r`):
 ```bash
 sudo apt purge linux-image-[OLD-VERSION]-lazy linux-headers-[OLD-VERSION]-lazy
 ```
-
 **Example:** if `dpkg -l | grep lazy` shows:
 ```text
 ii  linux-image-6.18.30-lazy   6.18.30-1   amd64   Linux kernel binary image
@@ -138,7 +156,6 @@ and your active kernel is `6.18.35-lazy`, remove the older one:
 ```bash
 sudo apt purge linux-image-6.18.30-lazy linux-headers-6.18.30-lazy
 ```
-
 If you see a warning like:
 ```
 dpkg: warning: while removing linux-image-6.18.38-lazy, directory '/lib/modules/6.18.38-lazy' not empty so not removed
@@ -147,14 +164,11 @@ clean up the leftover module directory manually (~70MB each):
 ```bash
 sudo rm -rf /lib/modules/6.18.38-lazy
 ```
-
 **3. Refresh GRUB** so removed kernels disappear from the boot menu:
 ```bash
 sudo update-grub
 ```
-
 ---
-
 ## 🖧 LazyKernel Server (Experimental) <a name="server-kernel"></a>
 ---
 
