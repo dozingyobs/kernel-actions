@@ -14,7 +14,8 @@
 ## ℹ️ Some info you might wanna know
 
 > [!IMPORTANT]
-> * **Active Branch:** Uses the latest upstream LTS source (6.18.y at the moment)
+> * **Stable Track:** Uses the latest upstream Stable source (7.1.y at the moment)
+> * **Longterm Track:** Uses the latest upstream LTS source (6.18.y at the moment)
 > * **Automation:** Compiled automatically via GitHub Actions on every release.
 > * **Secure Boot:** **Must be disabled**. Leaving Secure Boot active will prevent your system from booting this kernel.
 
