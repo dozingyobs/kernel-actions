@@ -1080,10 +1080,17 @@ index 69361c6335..85c8c54d22 100644
  			break;
  		}
  		cfs_rq = cfs_rq_of(se);
-@@ -7410,6 +7470,15 @@ static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -7428,18 +7428,28 @@ static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+ static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+ {
+ 	if (task_is_throttled(p)) {
+ 		dequeue_throttled_task(p, flags);
+ 		return true;
+ 	}
+ 
+ 	if (!p->se.sched_delayed)
  		util_est_dequeue(&rq->cfs, p);
  
- 	util_est_update(&rq->cfs, p, flags & DEQUEUE_SLEEP);
 +#ifdef CONFIG_SCHED_BORE
 +	struct cfs_rq *cfs_rq = cfs_rq_of(&p->se);
 +	struct sched_entity *se = &p->se;
@@ -1093,9 +1100,15 @@ index 69361c6335..85c8c54d22 100644
 +		restart_burst_bore(p);
 +	}
 +#endif /* CONFIG_SCHED_BORE */
++
  	if (dequeue_entities(rq, &p->se, flags) < 0)
  		return false;
  
+ 	/*
+ 	 * Must not reference @p after dequeue_entities(DEQUEUE_DELAYED).
+ 	 */
+ 	return true;
+ }
 @@ -9317,16 +9386,25 @@ static void yield_task_fair(struct rq *rq)
  	/*
  	 * Are we the only task in the tree?
