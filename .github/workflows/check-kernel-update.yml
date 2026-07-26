@@ -1,0 +1,121 @@
+name: Check for New Kernel Versions
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # checks every 6 hours
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-versions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Fetch Current Kernel Versions
+        id: fetch
+        run: |
+          JSON_DATA=$(curl -sSL --fail "https://kernel.org/releases.json")
+          if [ -z "$JSON_DATA" ]; then
+            echo "Error: Failed to fetch release data from kernel.org."
+            exit 1
+          fi
+
+          STABLE=$(echo "$JSON_DATA" | jq -r '.latest_stable.version')
+          LONGTERM=$(echo "$JSON_DATA" | jq -r '
+            .releases[]
+            | select(.moniker == "longterm")
+            | select(.version | startswith("6.18"))
+            | select(.iseol == false)
+            | .version
+          ' | head -n1)
+
+          echo "Current stable:   $STABLE"
+          echo "Current longterm: $LONGTERM"
+
+          echo "stable=$STABLE" >> "$GITHUB_OUTPUT"
+          echo "longterm=$LONGTERM" >> "$GITHUB_OUTPUT"
+
+      - name: Compare Against Last Known Versions
+        id: compare
+        run: |
+          STATE_FILE=".github/kernel-version-state.json"
+
+          if [ -f "$STATE_FILE" ]; then
+            LAST_STABLE=$(jq -r '.stable // empty' "$STATE_FILE")
+            LAST_LONGTERM=$(jq -r '.longterm // empty' "$STATE_FILE")
+          else
+            LAST_STABLE=""
+            LAST_LONGTERM=""
+          fi
+
+          echo "Last known stable:   ${LAST_STABLE:-none}"
+          echo "Last known longterm: ${LAST_LONGTERM:-none}"
+
+          CHANGED="false"
+          CHANGES=""
+
+          if [ "${{ steps.fetch.outputs.stable }}" != "$LAST_STABLE" ] && [ -n "$LAST_STABLE" ]; then
+            CHANGED="true"
+            CHANGES="${CHANGES}**stable**: \`$LAST_STABLE\` → \`${{ steps.fetch.outputs.stable }}\`\n"
+          fi
+
+          if [ "${{ steps.fetch.outputs.longterm }}" != "$LAST_LONGTERM" ] && [ -n "$LAST_LONGTERM" ]; then
+            CHANGED="true"
+            CHANGES="${CHANGES}**longterm**: \`$LAST_LONGTERM\` → \`${{ steps.fetch.outputs.longterm }}\`\n"
+          fi
+
+          # First run ever (no state file) — just record baseline, don't notify.
+          if [ -z "$LAST_STABLE" ] && [ -z "$LAST_LONGTERM" ]; then
+            echo "No prior state found — recording baseline without notifying."
+            CHANGED="false"
+          fi
+
+          echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
+          {
+            echo "changes<<EOF"
+            echo -e "$CHANGES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Update State File
+        run: |
+          mkdir -p .github
+          jq -n \
+            --arg stable "${{ steps.fetch.outputs.stable }}" \
+            --arg longterm "${{ steps.fetch.outputs.longterm }}" \
+            --arg checked "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{stable: $stable, longterm: $longterm, last_checked: $checked}' \
+            > .github/kernel-version-state.json
+
+      - name: Commit Updated State
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/kernel-version-state.json
+          git diff --quiet --cached || git commit -m "chore: update kernel version state [skip ci]"
+          git push
+
+      - name: Notify Discord on Change
+        if: steps.compare.outputs.changed == 'true'
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          CHANGES="${{ steps.compare.outputs.changes }}"
+          BUILD_URL="https://github.com/${{ github.repository }}/actions/workflows/build-kernel.yml"
+
+          curl -sf -X POST "$DISCORD_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "🐧 New kernel release detected",
+              "description": "$CHANGES\n[Trigger a build]($BUILD_URL)",
+              "color": 3066993
+            }]
+          }
+          EOF
