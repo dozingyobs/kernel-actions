@@ -2,6 +2,8 @@
 **This is a simple project where I compile the Linux kernel on Github's Actions because I wanted to have linux-tkg style performance while not building it myself, hence that's why I call it lazykernel.**
 
 ![Latest Commit](https://img.shields.io/github/last-commit/dozingyobs/kernel-actions)
+> [!NOTE]
+> today i just realized tkg already has a github actions pipeline and a prebuilt kernel in the first place, which uh kind of makes this project a whole lot useless i think
 
 ## 🧭 Quick Links
 * 📦 ⬇️ [Jump to Installation](#install)
@@ -242,7 +244,6 @@ Before looking at the benchmark data below, you can review the exact machine spe
 <img width="867" height="399" alt="Screenshot 2026-06-17 at 06-49-19 kernel-benchmarks - Phoronix Test Suite" src="https://github.com/user-attachments/assets/8a96ff58-1209-4947-a694-66ceb0eabc64" />
 <img width="867" height="348" alt="Screenshot 2026-06-17 at 06-50-48 kernel-benchmarks - Phoronix Test Suite" src="https://github.com/user-attachments/assets/2a57c7e8-fe9e-4ccf-ac1f-d5c2540143a5" />
 <img width="867" height="399" alt="Screenshot 2026-06-17 at 06-50-44 kernel-benchmarks - Phoronix Test Suite" src="https://github.com/user-attachments/assets/f05351e0-4f00-47bf-bdde-1e3c7048d66e" />
-
 
 
 
