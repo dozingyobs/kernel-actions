@@ -15,8 +15,10 @@ jobs:
         include:
           - moniker: stable
             series: "7.1"
+            config: configstable
           - moniker: longterm
             series: "6.18"
+            config: config
 
     steps:
     - name: Fetch and Verify Kernel Version
@@ -97,7 +99,7 @@ jobs:
     - name: Build Kernel
       working-directory: linux
       run: |
-        cp "$GITHUB_WORKSPACE/configs/config" .config
+        cp "$GITHUB_WORKSPACE/configs/${{ matrix.config }}" .config
         make LLVM=1 olddefconfig
         ./scripts/config --enable CONFIG_LTO_CLANG_THIN
         ./scripts/config --enable CONFIG_LD_IS_LLD
