@@ -1,7 +1,7 @@
 name: Check for New Kernel Versions
 on:
   schedule:
-    - cron: '0 */6 * * *'   # checks every 6 hours
+    - cron: '0 */6 * * *'   # every 6 hours; adjust as you like
   workflow_dispatch:
 
 permissions:
@@ -104,18 +104,17 @@ jobs:
         if: steps.compare.outputs.changed == 'true'
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          CHANGES: ${{ steps.compare.outputs.changes }}
         run: |
-          CHANGES="${{ steps.compare.outputs.changes }}"
           BUILD_URL="https://github.com/${{ github.repository }}/actions/workflows/build-kernel.yml"
+          DESC=$(printf '%s\n\n[Trigger a build](%s)' "$CHANGES" "$BUILD_URL")
+
+          PAYLOAD=$(jq -n \
+            --arg title "🐧 New kernel release detected" \
+            --arg desc "$DESC" \
+            --argjson color 3066993 \
+            '{embeds: [{title: $title, description: $desc, color: $color}]}')
 
           curl -sf -X POST "$DISCORD_WEBHOOK" \
             -H "Content-Type: application/json" \
-            -d @- <<EOF
-          {
-            "embeds": [{
-              "title": "🐧 New kernel release detected",
-              "description": "$CHANGES\n[Trigger a build]($BUILD_URL)",
-              "color": 3066993
-            }]
-          }
-          EOF
+            -d "$PAYLOAD"
