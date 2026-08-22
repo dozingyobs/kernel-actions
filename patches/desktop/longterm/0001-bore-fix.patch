@@ -1,0 +1,35 @@
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -3952,12 +3952,18 @@
+ 	bool curr = cfs_rq->curr == se;
+ 	bool rel_vprot = false;
+ 	u64 avruntime = 0;
++#ifdef CONFIG_SCHED_BORE
++	s64 vlag_unscaled = 0;
++#endif /* !CONFIG_SCHED_BORE */
+ 
+ 	if (se->on_rq) {
+ 		/* commit outstanding execution time */
+ 		update_curr(cfs_rq);
+ 		avruntime = avg_vruntime(cfs_rq);
+ 		se->vlag = entity_lag(cfs_rq, se, avruntime);
++#ifdef CONFIG_SCHED_BORE
++		vlag_unscaled = se->vlag;
++#endif /* !CONFIG_SCHED_BORE */
+ 		se->deadline -= avruntime;
+ 		se->rel_deadline = 1;
+ 		if (curr && protect_slice(se)) {
+@@ -3987,7 +3993,12 @@
+ 			se->vprot += avruntime;
+ 		se->deadline += avruntime;
+ 		se->rel_deadline = 0;
+-		se->vruntime = avruntime - se->vlag;
++#ifdef CONFIG_SCHED_BORE
++		if (curr)
++			se->vruntime += vlag_unscaled - se->vlag;
++		else
++#endif /* !CONFIG_SCHED_BORE */
++			se->vruntime = avruntime - se->vlag;
+ 
+ 		update_load_add(&cfs_rq->load, se->load.weight);
+ 		if (!curr)
