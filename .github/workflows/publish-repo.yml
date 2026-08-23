@@ -244,34 +244,27 @@ jobs:
 
       - name: Prune Old Pool Versions
         run: |
-          # Keep only the N most recent versions per package basename in each
-          # track's pool, so the repo (and the Pages artifact) doesn't grow
-          # unbounded across runs. Runs after meta-packages are built so this
-          # run's fresh meta-package isn't accidentally pruned as "old", and
-          # before indexing so the pruned state is what gets published.
           KEEP_VERSIONS=3
 
           for TRACK in stable longterm server; do
             [ -d "site/$TRACK/pool" ] || continue
             cd "site/$TRACK/pool"
 
-            declare -A GROUPS=()
+            declare -A PKG_GROUPS=()
             for f in *.deb; do
               [ -e "$f" ] || continue
-              # Strip the version out of the filename to get a stable grouping key, e.g.
-              # linux-image-7.1.9-lazy_7.1.9-1_amd64.deb -> linux-image-lazy
               base=$(echo "$f" | sed -E 's/-[0-9][^-]*(-lazy(server)?)?_.*\.deb$/\1/')
-              GROUPS["$base"]+="$f"$'\n'
+              PKG_GROUPS["$base"]+="$f"$'\n'
             done
 
-            for base in "${!GROUPS[@]}"; do
-              echo "${GROUPS[$base]}" | sed '/^$/d' | sort -V | head -n -"$KEEP_VERSIONS" | while read -r old; do
+            for base in "${!PKG_GROUPS[@]}"; do
+              echo "${PKG_GROUPS[$base]}" | sed '/^$/d' | sort -V | head -n -"$KEEP_VERSIONS" | while read -r old; do
                 echo "Pruning old pool file: $TRACK/$old"
                 rm -f -- "$old"
               done
             done
 
-            unset GROUPS
+            unset PKG_GROUPS
             cd - > /dev/null
           done
 
