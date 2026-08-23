@@ -148,8 +148,8 @@ jobs:
             local DESC="$6"
 
             local IMAGE_DEB HEADERS_DEB IMAGE HEADERS VERSION
-            IMAGE_DEB=$(ls site/$TRACK/pool/$IMAGE_GLOB 2>/dev/null | grep -v -- '-meta' | head -1)
-            HEADERS_DEB=$(ls site/$TRACK/pool/$HEADERS_GLOB 2>/dev/null | head -1)
+            IMAGE_DEB=$(ls site/$TRACK/pool/$IMAGE_GLOB 2>/dev/null | grep -v -- '-meta' | sort -V | tail -1)
+            HEADERS_DEB=$(ls site/$TRACK/pool/$HEADERS_GLOB 2>/dev/null | sort -V | tail -1)
 
             if [ -z "$IMAGE_DEB" ]; then
               echo "::warning::No image package found for $TRACK, skipping meta-package"
@@ -183,6 +183,9 @@ jobs:
             rm -rf meta-extract
             dpkg-deb -R "$DEB" meta-extract
 
+            # POSTINST_PATTERN now matches both linux-image-* and linux-headers-*
+            # for this track's suffix, so old headers get autoremove-marked
+            # alongside old images instead of accumulating forever.
             cat > meta-extract/DEBIAN/postinst << EOF
           #!/bin/bash
           set -e
@@ -208,17 +211,17 @@ jobs:
 
           build_meta "stable"   "linux-image-lazy-stable-meta"   \
                      'linux-image-*-lazy_*.deb' 'linux-headers-*-lazy_*.deb' \
-                     'linux-image-.*-lazy$' \
+                     'linux-(image|headers)-.*-lazy$' \
                      "Meta-package tracking the latest LazyKernel Desktop (stable) build"
 
           build_meta "longterm" "linux-image-lazy-longterm-meta" \
                      'linux-image-*-lazy_*.deb' 'linux-headers-*-lazy_*.deb' \
-                     'linux-image-.*-lazy$' \
+                     'linux-(image|headers)-.*-lazy$' \
                      "Meta-package tracking the latest LazyKernel Desktop (longterm) build"
 
           build_meta "server"   "linux-image-lazy-server-meta"   \
                      'linux-image-*-lazyserver_*.deb' 'linux-headers-*-lazyserver_*.deb' \
-                     'linux-image-.*-lazyserver' \
+                     'linux-(image|headers)-.*-lazyserver' \
                      "Meta-package tracking the latest LazyKernel Server build"
 
       - name: Verify Meta-Packages
@@ -237,6 +240,39 @@ jobs:
               exit 1
             fi
             echo "$pkg verified ✓"
+          done
+
+      - name: Prune Old Pool Versions
+        run: |
+          # Keep only the N most recent versions per package basename in each
+          # track's pool, so the repo (and the Pages artifact) doesn't grow
+          # unbounded across runs. Runs after meta-packages are built so this
+          # run's fresh meta-package isn't accidentally pruned as "old", and
+          # before indexing so the pruned state is what gets published.
+          KEEP_VERSIONS=3
+
+          for TRACK in stable longterm server; do
+            [ -d "site/$TRACK/pool" ] || continue
+            cd "site/$TRACK/pool"
+
+            declare -A GROUPS=()
+            for f in *.deb; do
+              [ -e "$f" ] || continue
+              # Strip the version out of the filename to get a stable grouping key, e.g.
+              # linux-image-7.1.9-lazy_7.1.9-1_amd64.deb -> linux-image-lazy
+              base=$(echo "$f" | sed -E 's/-[0-9][^-]*(-lazy(server)?)?_.*\.deb$/\1/')
+              GROUPS["$base"]+="$f"$'\n'
+            done
+
+            for base in "${!GROUPS[@]}"; do
+              echo "${GROUPS[$base]}" | sed '/^$/d' | sort -V | head -n -"$KEEP_VERSIONS" | while read -r old; do
+                echo "Pruning old pool file: $TRACK/$old"
+                rm -f -- "$old"
+              done
+            done
+
+            unset GROUPS
+            cd - > /dev/null
           done
 
       - name: Generate Package Indexes
