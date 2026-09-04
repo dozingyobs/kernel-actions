@@ -14,7 +14,7 @@ jobs:
       matrix:
         include:
           - moniker: stable
-            series: "7.1"
+            series: "7.2"
             config: configstable
           - moniker: longterm
             series: "6.18"
