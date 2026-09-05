@@ -69,7 +69,7 @@ LazyKernel is published as **three independent tracks**. Add only the source(s) 
 
 | Track | What it tracks | Best for |
 |---|---|---|
-| `stable` | Latest mainline **stable** kernel (currently 7.1.x) | Desktop / general use, newest features |
+| `stable` | Latest mainline **stable** kernel (currently 7.2.x) | Desktop / general use, newest features |
 | `longterm` | Pinned **6.18.x LTS** branch | Desktop users who want a longer-lived, less-churny base |
 | `server` | Power/efficiency-tuned server build | Headless home server — see 🖧 LazyKernel Server (Experimental) first |
 
