@@ -16,7 +16,7 @@ index d6f75d890..9fa3e5890 100644
  # Maximum length of UTS_VERSION is 64 chars
  filechk_uts_version = \
 -	utsver=$$(echo '$(pound)'"$(build-version)" $(smp-flag-y) $(preempt-flag-y) "$(build-timestamp)" | cut -b -64); \
-+	utsver=$$(echo '$(pound)'"$(build-version)" $(smp-flag-y) $(preempt-flag-y) "lazy" "$(build-timestamp)" | cut -b -64); \
++	utsver=$$(echo '$(pound)'"$(build-version)" $(smp-flag-y) $(preempt-flag-y) "TKG" "$(build-timestamp)" | cut -b -64); \
  	echo '$(pound)'define UTS_VERSION \""$${utsver}"\"
  
  #
@@ -393,14 +393,14 @@ diff --git a/mm/internal.h b/mm/internal.h
 index 181e79f1d..4177b3051 100644
 --- a/mm/internal.h
 +++ b/mm/internal.h
-@@ -911,6 +911,7 @@ void post_alloc_hook(struct page *page, unsigned int order, gfp_t gfp_flags);
- extern bool free_pages_prepare(struct page *page, unsigned int order);
+@@ -718,6 +718,7 @@
+ extern char * const zone_names[MAX_NR_ZONES];
  
- extern int user_min_free_kbytes;
+ extern int min_free_kbytes;
 +extern atomic_long_t kswapd_waiters;
+ extern int defrag_mode;
  
- struct page *__alloc_frozen_pages_noprof(gfp_t, unsigned int order, int nid,
- 		nodemask_t *);
+ void setup_per_zone_wmarks(void);
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
 index ee902a468..742c0117d 100644
 --- a/mm/page_alloc.c
@@ -596,16 +596,15 @@ same change so Zen Kernel users benefit.
 
 tkg: Config switch changed to our local "ZENIFY" toggle
 ---
- mm/swap.c | 5 +++++
+ mm/swap_state.c | 5 +++++
  1 file changed, 5 insertions(+)
 
-diff --git a/mm/swap.c b/mm/swap.c
+diff --git a/mm/swap_state.c b/mm/swap_state.c
 index 588f50d8f..64bbf7258 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -1189,6 +1189,10 @@ static const struct ctl_table swap_sysctl_table[] = {
-  */
- void __init swap_setup(void)
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -1015,6 +1015,10 @@ static void __init swap_readahead_setup(void)
+ static void __init swap_readahead_setup(void)
  {
 +#ifdef CONFIG_ZENIFY
 +	/* Only swap-in pages requested, avoid readahead */
@@ -614,13 +613,14 @@ index 588f50d8f..64bbf7258 100644
  	unsigned long megs = PAGES_TO_MB(totalram_pages());
  
  	/* Use a smaller cluster for small-memory machines */
-@@ -1200,6 +1204,7 @@ void __init swap_setup(void)
+ 	if (megs < 16)
+@@ -1024,6 +1028,7 @@ static void __init swap_readahead_setup(void)
  	 * Right now other parts of the system means that we
  	 * _really_ don't want to cluster much more
  	 */
 +#endif
  
- 	register_sysctl_init("vm", swap_sysctl_table);
+ 	register_sysctl_init("vm", swap_readahead_sysctl_table);
  }
 -- 
 2.55.0
