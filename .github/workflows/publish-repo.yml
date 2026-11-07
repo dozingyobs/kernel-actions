@@ -170,7 +170,7 @@ jobs:
           Version: ${VERSION}
           Architecture: amd64
           Depends: ${IMAGE}${HEADERS:+, ${HEADERS}}
-          Maintainer: dozingyobs
+          Maintainer: dozingyobs <dozingyobs@users.noreply.github.com>
           Description: ${DESC}
            Installing this package ensures apt upgrade always pulls the
            latest matching LazyKernel image and headers for this track.
